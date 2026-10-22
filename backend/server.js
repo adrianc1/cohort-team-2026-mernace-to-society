@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import connectDB from './config/database.js';
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -8,6 +10,7 @@ const PORT = process.env.PORT || 3000;
 // Middleware (will have Middleware folder for middle fxns)
 app.use(cors());
 app.use(express.json());
+connectDB()
 
 // Routes (moving routes into dedicated folder)
 app.get('/api/v1/health', (req, res) => {
