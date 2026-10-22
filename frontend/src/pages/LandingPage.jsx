@@ -1,0 +1,23 @@
+import "../App.css"
+
+const LandingPage = () => {
+  return (
+    <div>
+      <h1>Go Team MERNace to Society!!!!</h1>
+      <h2>We absolutely got this!</h2>
+      <br />
+      <div>
+        <img
+          src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcWVhYXlmaWdyd2dqZTVob2tpaWJobmJjNWduaDI2NWJkOXJnaGs5aSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/KEYHVukD2C6xKcU2n6/giphy.gif"
+          alt="we got this"></img>
+        <br />
+        <br />
+        <img
+          src="https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExMm1mdzIweGxxdHZyY2Q4MjBybHZ2cmhnanNtdXFvdDh6cnRla3RuayZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/HErxXO3PkYJ7HIBmq4/giphy.gif"
+          alt="we got this"></img>
+      </div>
+    </div>
+  )
+}
+
+export default LandingPage
