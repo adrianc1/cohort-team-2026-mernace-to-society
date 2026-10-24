@@ -1,7 +1,10 @@
 
 import Sidebar from "../components/Sidebar"
+import { useNavigate } from "react-router-dom"
 
 function DashboardPage() {
+  const navigate = useNavigate()
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar />
@@ -18,7 +21,7 @@ function DashboardPage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700">
+            <button onClick={() => navigate("/billintake")} className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-medium text-white hover:bg-blue-700">
               + Add Bill
             </button>
             <button className="rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-100">
