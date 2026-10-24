@@ -1,4 +1,5 @@
-
+import { useState, useEffect } from 'react'
+import { supabase } from './utils/supabase'
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import LandingPage from "./pages/LandingPage"
 import DashboardPage from "./pages/DashboardPage"
