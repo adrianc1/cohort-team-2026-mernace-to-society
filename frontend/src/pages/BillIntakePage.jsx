@@ -1,8 +1,8 @@
 import Sidebar from "../components/Sidebar"
 import ExtractedInfo from "../components/ExtractedInfo"
-import DragAndDrop from "../components/DragAndDrop"
+import UploadDocument from "../components/UploadDocument"
 
-function BillIntake() {
+function BillIntakePage() {
   
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -32,7 +32,7 @@ function BillIntake() {
                 Upload your bill or invoice document.
               </p>
 
-              <DragAndDrop />
+              <UploadDocument />
             </section>
 
             {/* Extracted Bill Details */}
@@ -53,4 +53,4 @@ function BillIntake() {
   )
 }
 
-export default BillIntake
+export default BillIntakePage

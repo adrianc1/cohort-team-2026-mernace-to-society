@@ -20,4 +20,6 @@
 2. `npm install`
 3. `copy .env.example into a .env file`
 4. `npm run dev`
-5. Verify: `GET http://localhost:3000/api/v1/health` returns `{ "status": "ok" }`
+5. Verify: `GET http://localhost:3000/api/v1/health` returns `{ status: "ok" }`
+
+### Frontend
