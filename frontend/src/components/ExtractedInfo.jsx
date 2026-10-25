@@ -16,7 +16,7 @@ return (
                     Property
                   </label>
 
-                  <select
+                  {/* <select
                     id="property"
                     defaultValue=""
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -24,9 +24,15 @@ return (
                     <option value="" disabled>
                       Select property
                     </option>
-                    <option value="property-1">Oakwood Aparments</option>
-                    <option value="property-2">Roya Oaks Apartments</option>
-                  </select>
+                    <option value="property1">Oakwood Aparments</option>
+                    <option value="property2">Roya Oaks Apartments</option>
+                  </select> */}
+                    <input
+                      id="property"
+                      type="text"
+                      placeholder="Royal Oaks Apartments"
+                      className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

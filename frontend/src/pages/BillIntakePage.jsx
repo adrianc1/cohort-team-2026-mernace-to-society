@@ -23,7 +23,7 @@ function BillIntakePage() {
         <div className="mt-6 w-full space-y-6">
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 
-            <section className="rounded-lg border border-gray-200 bg-white p-6">
+            <section className="flex min-h-[300px] flex-col rounded-lg border border-gray-200 bg-white p-6">
               <h2 className="text-lg font-semibold text-gray-900">
                 Document Upload
               </h2>
