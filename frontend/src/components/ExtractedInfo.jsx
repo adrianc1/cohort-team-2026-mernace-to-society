@@ -1,13 +1,43 @@
 
+import { useState } from "react"
+
 
 function ExtractedInfo(){
 
-return (
+    const [formData, setFormData] = useState({
+      property: "",
+      vendor: "",
+      invoiceNumber:"",
+      amount: "",
+      invoiceDate:"",
+      dueDate:"",
+      category: "",
+      approver:""
+  })
 
-<form
-                className="mt-6 space-y-4"
-                onSubmit={(event) => event.preventDefault()}
-              >
+ async function handleSubmit(e){
+      e.preventDefault()
+
+      const res = await fetch("/api/bills", {
+        method:"POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if(!res.ok){
+        throw new Error("Failed to submit bill")
+      }
+
+
+  }
+
+ return (
+
+ 
+
+<form  className="mt-6 space-y-4" onSubmit={handleSubmit}>
                 <div>
                   <label
                     htmlFor="property"
@@ -31,6 +61,8 @@ return (
                       id="property"
                       type="text"
                       placeholder="Royal Oaks Apartments"
+                      value={formData.property}
+                      onChange={(e) => setFormData((prev) => ({...prev, property:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                 </div>
@@ -48,6 +80,8 @@ return (
                       id="vendor"
                       type="text"
                       placeholder="Florida Power & Light"
+                      value={formData.vendor}
+                      onChange={(e) => setFormData((prev) => ({...prev, vendor:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -64,6 +98,8 @@ return (
                       id="invoiceNumber"
                       type="text"
                       placeholder="Enter invoice number"
+                      value={formData.invoiceNumber}
+                      onChange={(e) => setFormData((prev) => ({...prev, invoiceNumber:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -82,6 +118,8 @@ return (
                       min="0"
                       step="0.01"
                       placeholder="0.00"
+                      value={formData.amount}
+                      onChange={(e) => setFormData((prev) => ({...prev, amount:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -97,6 +135,8 @@ return (
                     <input
                       id="invoiceDate"
                       type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData((prev) => ({...prev, date:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -112,6 +152,8 @@ return (
                     <input
                       id="dueDate"
                       type="date"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData((prev) => ({...prev, dueDate:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                   </div>
@@ -127,6 +169,8 @@ return (
                     <select
                       id="category"
                       defaultValue=""
+                      value={formData.category}
+                      onChange={(e) => setFormData((prev) => ({...prev, category:e.target.value}))}
                       className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
                       <option value="" disabled>
@@ -140,7 +184,7 @@ return (
                   </div>
                 </div>
 
-                {/* Approver */}
+                
                 <div>
                   <label
                     htmlFor="approver"
@@ -152,17 +196,19 @@ return (
                   <select
                     id="approver"
                     defaultValue=""
+                    value={formData.approver}
+                      onChange={(e) => setFormData((prev) => ({...prev, approver:e.target.value}))}
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="" disabled>
                       Select approver
                     </option>
-                    <option value="approver-1">Robert</option>
-                    <option value="approver-2">John</option>
+                    <option value="Robert">Robert</option>
+                    <option value="John">John</option>
                   </select>
                 </div>
 
-                {/* Form Actions */}
+              
                 <div className="flex justify-end gap-3 border-t border-gray-200 pt-5">
                   <button
                     type="button"

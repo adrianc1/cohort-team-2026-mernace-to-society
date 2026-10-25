@@ -1,11 +1,11 @@
 
 
-import { useState, useRef } from "react";
+import { useState, useRef } from "react"
 
 function UploadDocument() {
-  const [file, setFile] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef(null);
+  const [file, setFile] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef(null)
 
 
   function handleFileSelection(selectedFile) {
@@ -13,14 +13,14 @@ function UploadDocument() {
     "application/pdf",
     "image/jpeg",
     "image/png",
-  ];
+  ]
 
   if (!allowedTypes.includes(selectedFile.type)) {
-    alert("Please select a PDF, JPG, or PNG file.");
-    return;
+    alert("Please select a PDF, JPG, or PNG file.")
+    return
   }
 
-  setFile(selectedFile);
+  setFile(selectedFile)
 }
 
   return (
@@ -83,8 +83,9 @@ function UploadDocument() {
           </button>
         </div>
       )}
+
     </div>
-  );
+  )
 }
 
 
