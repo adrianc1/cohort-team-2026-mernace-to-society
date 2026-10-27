@@ -1,12 +1,9 @@
-
-import { Link } from "react-router-dom"
+import { Link } from "react-router-dom";
 
 function Sidebar() {
   return (
     <aside className="flex min-h-screen w-64 shrink-0 flex-col border-r border-[#2B405D] bg-[#192D4A] px-5 py-6">
-      <h1 className="mb-10 text-2xl font-bold text-white">
-        PropBill
-      </h1>
+      <h1 className="mb-10 text-2xl font-bold text-white">Billio</h1>
 
       <nav className="flex flex-1 flex-col gap-2">
         <Link
@@ -59,17 +56,13 @@ function Sidebar() {
           </div>
 
           <div>
-            <p className="text-sm font-medium text-white">
-              Robert Smith
-            </p>
-            <p className="text-xs text-slate-300">
-              Admin
-            </p>
+            <p className="text-sm font-medium text-white">Robert Smith</p>
+            <p className="text-xs text-slate-300">Admin</p>
           </div>
         </div>
       </div>
     </aside>
-  )
+  );
 }
 
-export default Sidebar
+export default Sidebar;
