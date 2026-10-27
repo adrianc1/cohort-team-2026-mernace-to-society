@@ -14,10 +14,10 @@ function App() {
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/billintake" element={<BillIntakePage />} />
         <Route path="/properties" element={<PropertiesPage />} />
+        <Route path="/vendors" element={<VendorsPage />} />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
-
+export default App;
