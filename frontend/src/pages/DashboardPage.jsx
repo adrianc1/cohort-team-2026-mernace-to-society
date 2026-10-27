@@ -1,5 +1,6 @@
 import Sidebar from "../components/Sidebar";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const cards = [
   { title: "Bills to Review", value: "0" },
@@ -20,6 +21,7 @@ const columns = [
 
 function DashboardPage() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <div className="flex min-h-screen bg-white text-black">
@@ -49,7 +51,12 @@ function DashboardPage() {
                   {["Enter Manually", "Upload Bill"].map((label) => (
                     <button
                       key={label}
-                      onClick={() => setOpen(false)}
+                      onClick={() => {
+                        setOpen(false);
+                        if (label === "Enter Manually") {
+                          navigate("/bills/new");
+                        }
+                      }}
                       className="block w-full px-4 py-2 text-left text-sm font-semibold hover:bg-section"
                     >
                       {label}
