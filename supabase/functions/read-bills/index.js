@@ -2,7 +2,6 @@ import { withSupabase } from 'jsr:@supabase/server@^1';
 
 export default {
 	fetch: withSupabase({ auth: 'user' }, async (_req, { supabase }) => {
-		// RLS means this only returns the caller's bills, no WHERE needed
 		const { data, error } = await supabase
 			.from('bills')
 			.select('*')
