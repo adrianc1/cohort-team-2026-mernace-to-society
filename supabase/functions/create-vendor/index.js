@@ -21,7 +21,7 @@ export default {
 
 		// Vendors are shared across users (no user_id column), so only status is added here
 		const { data, error } = await supabase
-			.from('vendors')
+			.from('vendor')
 			.insert({
 				...result.value,
 				status: 'active',
