@@ -1,4 +1,5 @@
 import Sidebar from "../components/Sidebar";
+import Footer from "../components/Footer";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -26,6 +27,7 @@ function DashboardPage() {
   return (
     <div className="flex min-h-screen bg-white text-black">
       <Sidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
       <main className="min-w-0 flex-1 p-4 md:p-8">
         <section className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -48,14 +50,15 @@ function DashboardPage() {
               </button>
               {open && (
                 <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg">
-                  {["Enter Manually", "Upload Bill"].map((label) => (
+                  {[
+                    { label: "Enter Manually", path: "/bills/manual" },
+                    { label: "Upload Bill", path: "/bills/upload" },
+                  ].map(({ label, path }) => (
                     <button
                       key={label}
                       onClick={() => {
                         setOpen(false);
-                        if (label === "Enter Manually") {
-                          navigate("/bills/new");
-                        }
+                        navigate(path);
                       }}
                       className="block w-full px-4 py-2 text-left text-sm font-semibold hover:bg-section"
                     >
@@ -135,6 +138,8 @@ function DashboardPage() {
           </table>
         </section>
       </main>
+      <Footer />
+      </div>
     </div>
   );
 }
