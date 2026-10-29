@@ -1,15 +1,16 @@
 //import { supabase } from '../utils/supabase'
-import { BrowserRouter, Routes, Route } from "react-router-dom"
-import LandingPage from "./pages/LandingPage"
-import DashboardPage from "./pages/DashboardPage"
-import BillsPage from "./pages/BillsPage"
-import UploadBillPage from "./pages/UploadBillPage"
-import PropertiesPage from "./pages/PropertiesPage"
-import ManualBillIntakePage from "./pages/ManualBillIntakePage"
-import VendorsPage from "./pages/VendorsPage"
-import TermsOfServicePage from "./pages/TermsOfServicePage"
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage"
-import FunctionTestPage from "./pages/FunctionTestPage"
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
+import DashboardPage from "./pages/DashboardPage";
+import BillsPage from "./pages/BillsPage";
+import UploadBillPage from "./pages/UploadBillPage";
+import PropertiesPage from "./pages/PropertiesPage";
+import ManualBillIntakePage from "./pages/ManualBillIntakePage";
+import VendorsPage from "./pages/VendorsPage";
+import ApprovalsPage from "./pages/ApprovalsPage";
+import TermsOfServicePage from "./pages/TermsOfServicePage";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import FunctionTestPage from "./pages/FunctionTestPage";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/bills/manual" element={<ManualBillIntakePage />} />
         <Route path="/properties" element={<PropertiesPage />} />
         <Route path="/vendors" element={<VendorsPage />} />
+        <Route path="/approvals" element={<ApprovalsPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
         {/* Dev-only page for calling edge functions directly */}
