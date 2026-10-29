@@ -9,7 +9,7 @@ const TEST_EMAIL = "test@example.com"
 const TEST_PASSWORD = "password123"
 
 const testBill = { name: "Electric", amount: 120.5, due_date: "2026-11-01" }
-const testVendor = { aliases: ["ConEd", "Consolidated Edison"], portal_url: "https://www.coned.com" }
+const testVendor = { name: "Consolidated Edison", aliases: ["ConEd", "Con Edison"], portal_url: "https://www.coned.com" }
 
 function FunctionTestPage() {
   const [user, setUser] = useState(null)

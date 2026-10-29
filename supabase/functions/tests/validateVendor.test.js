@@ -2,7 +2,8 @@ import { assertEquals } from 'jsr:@std/assert';
 import { validateVendor } from '../_shared/validateVendor.js';
 
 const valid = {
-	aliases: ['ConEd', 'Consolidated Edison'],
+	name: 'Consolidated Edison',
+	aliases: ['ConEd', 'Con Edison'],
 	portal_url: 'https://www.coned.com/',
 };
 
@@ -10,9 +11,17 @@ Deno.test('accepts a valid vendor', () => {
 	assertEquals(validateVendor(valid), { ok: true, value: valid });
 });
 
-Deno.test('portal_url is optional', () => {
-	const result = validateVendor({ aliases: ['ConEd'] });
-	assertEquals(result, { ok: true, value: { aliases: ['ConEd'], portal_url: null } });
+Deno.test('only name is required', () => {
+	const result = validateVendor({ name: 'ConEd' });
+	assertEquals(result, {
+		ok: true,
+		value: { name: 'ConEd', aliases: [], portal_url: null },
+	});
+});
+
+Deno.test('trims the name', () => {
+	const result = validateVendor({ ...valid, name: '  Consolidated Edison  ' });
+	assertEquals(result.value.name, 'Consolidated Edison');
 });
 
 Deno.test('empty portal_url becomes null', () => {
@@ -30,6 +39,11 @@ Deno.test('removes duplicate aliases ignoring case', () => {
 	assertEquals(result.value.aliases, ['ConEd']);
 });
 
+Deno.test('drops an alias that repeats the name', () => {
+	const result = validateVendor({ ...valid, aliases: ['consolidated edison', 'ConEd'] });
+	assertEquals(result.value.aliases, ['ConEd']);
+});
+
 Deno.test("drops fields the user shouldn't control", () => {
 	const result = validateVendor({ ...valid, status: 'inactive', id: 'abc' });
 	assertEquals(result, { ok: true, value: valid });
@@ -38,9 +52,11 @@ Deno.test("drops fields the user shouldn't control", () => {
 const invalidCases = [
 	['null body', null],
 	['array body', [valid]],
-	['missing aliases', { portal_url: valid.portal_url }],
+	['missing name', { ...valid, name: undefined }],
+	['blank name', { ...valid, name: '   ' }],
+	['name not a string', { ...valid, name: 42 }],
+	['name too long', { ...valid, name: 'x'.repeat(101) }],
 	['aliases not an array', { ...valid, aliases: 'ConEd' }],
-	['empty aliases', { ...valid, aliases: [] }],
 	['blank alias', { ...valid, aliases: ['ConEd', '   '] }],
 	['alias not a string', { ...valid, aliases: [42] }],
 	['alias too long', { ...valid, aliases: ['x'.repeat(101)] }],

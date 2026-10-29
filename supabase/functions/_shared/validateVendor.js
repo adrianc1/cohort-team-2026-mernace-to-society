@@ -3,17 +3,28 @@ export function validateVendor(body) {
 		return { ok: false, error: 'Body must be an object' };
 	}
 
-	// Only aliases and portal_url are read. status is set by the server, id/created_at by the DB.
-	const { aliases, portal_url } = body;
+	// Only name, aliases and portal_url are read. status is set by the server, id/created_at by the DB.
+	const { name, aliases, portal_url } = body;
 
-	if (!Array.isArray(aliases) || aliases.length === 0) {
-		return { ok: false, error: 'Aliases must be a non-empty array' };
+	if (typeof name !== 'string' || name.trim().length === 0) {
+		return { ok: false, error: 'Name is required' };
 	}
-	if (aliases.length > 20) {
+	if (name.trim().length > 100) {
+		return { ok: false, error: 'Name must be 100 characters or less' };
+	}
+
+	// aliases are optional alternate spellings, e.g. "ConEd" for "Consolidated Edison"
+	const list = aliases === undefined || aliases === null ? [] : aliases;
+	if (!Array.isArray(list)) {
+		return { ok: false, error: 'Aliases must be an array' };
+	}
+	if (list.length > 20) {
 		return { ok: false, error: 'No more than 20 aliases' };
 	}
+	// Seed with the name so an alias that just repeats it gets dropped
+	const seen = [name.trim().toLowerCase()];
 	const cleaned = [];
-	for (const alias of aliases) {
+	for (const alias of list) {
 		if (typeof alias !== 'string' || alias.trim().length === 0) {
 			return { ok: false, error: 'Each alias must be a non-empty string' };
 		}
@@ -21,10 +32,10 @@ export function validateVendor(body) {
 			return { ok: false, error: 'Each alias must be 100 characters or less' };
 		}
 		// "ConEd" and "coned" are the same vendor, keep the first spelling
-		const exists = cleaned.some(
-			(a) => a.toLowerCase() === alias.trim().toLowerCase(),
-		);
-		if (!exists) cleaned.push(alias.trim());
+		if (!seen.includes(alias.trim().toLowerCase())) {
+			seen.push(alias.trim().toLowerCase());
+			cleaned.push(alias.trim());
+		}
 	}
 
 	// portal_url is optional; missing or empty string becomes null
@@ -45,5 +56,8 @@ export function validateVendor(body) {
 		url = parsed.href;
 	}
 
-	return { ok: true, value: { aliases: cleaned, portal_url: url } };
+	return {
+		ok: true,
+		value: { name: name.trim(), aliases: cleaned, portal_url: url },
+	};
 }
