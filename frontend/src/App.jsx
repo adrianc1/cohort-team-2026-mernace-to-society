@@ -9,6 +9,7 @@ import ManualBillIntakePage from "./pages/ManualBillIntakePage"
 import VendorsPage from "./pages/VendorsPage"
 import TermsOfServicePage from "./pages/TermsOfServicePage"
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage"
+import FunctionTestPage from "./pages/FunctionTestPage"
 
 function App() {
   return (
@@ -23,6 +24,8 @@ function App() {
         <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/terms-of-service" element={<TermsOfServicePage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        {/* Dev-only page for calling edge functions directly */}
+        <Route path="/dev/functions" element={<FunctionTestPage />} />
       </Routes>
     </BrowserRouter>
   );
