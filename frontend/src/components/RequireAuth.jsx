@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 
 function RequireAuth({ children }) {
-  const location = useLocation();
   const [retryCount, setRetryCount] = useState(0);
   const [authState, setAuthState] = useState({
     isLoading: true,
@@ -85,13 +84,7 @@ function RequireAuth({ children }) {
   }
 
   if (!authState.user) {
-    return (
-      <Navigate
-        to="/login"
-        replace
-        state={{ from: location }}
-      />
-    );
+    return <Navigate to="/" replace />;
   }
 
   return children;
