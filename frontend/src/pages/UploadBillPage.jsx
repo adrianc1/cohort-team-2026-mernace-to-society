@@ -5,6 +5,8 @@ import BillDetailsForm from '../components/BillDetailsForm';
 import UploadDocument from '../components/UploadDocument';
 import PropertyForm from '../components/PropertyForm';
 import VendorForm from '../components/VendorForm';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { canManageRecords } from '../utils/permissions';
 
 // Calls an edge function and throws its own error message on failure.
 // invoke hides that message on the response body.
@@ -62,6 +64,8 @@ function formatMoney(amount) {
 }
 
 function UploadBillPage() {
+	const { profile } = useUserProfile();
+	const canEditRecords = canManageRecords(profile?.role);
 	// The bill process-bill saved: pending, needs_review or extraction_failed
 	const [bill, setBill] = useState(null);
 	// Set when there's no account but we recognized the vendor (for Add Account)
@@ -340,7 +344,9 @@ function UploadBillPage() {
 							</p>
 							<p className="mt-1 text-sm text-gray-700">{bill.review_reason}</p>
 							<p className="mt-1 text-sm text-gray-600">
-								Fix the details below and save to send it for approval.
+								{canEditRecords
+									? 'Fix the details below and save to send it for approval.'
+									: 'A manager or administrator must review and complete this bill.'}
 							</p>
 						</div>
 					)}
@@ -364,14 +370,20 @@ function UploadBillPage() {
 									This looks like{' '}
 									<span className="font-semibold">{knownProperty.name}</span>,
 									which is already one of your properties, so it's selected for
-									you. Add the vendor account to finish.
+									you.{' '}
+									{canEditRecords
+										? 'Add the vendor account to finish.'
+										: 'A manager or administrator must add the vendor account to finish.'}
 								</p>
 							) : (
 								<p className="mt-1 text-sm text-gray-600">
-									Add what's missing, or choose from the dropdowns below.
+									{canEditRecords
+										? 'Add the missing items, or choose from the dropdowns below.'
+										: 'A manager or administrator must add the missing property or vendor account. Contact them to complete this bill.'}
 								</p>
 							)}
-							<div className="mt-3 flex flex-wrap gap-2">
+							{canEditRecords && (
+								<div className="mt-3 flex flex-wrap gap-2">
 								{/* Hidden when the property exists: adding it again would fail */}
 								{!knownProperty && (
 									<button
@@ -393,7 +405,8 @@ function UploadBillPage() {
 								>
 									+ Add vendor account
 								</button>
-							</div>
+								</div>
+							)}
 							{formError && !openForm && (
 								<p role="alert" className="mt-2 text-sm text-red-700">
 									{formError}
@@ -405,7 +418,7 @@ function UploadBillPage() {
 					{/* Edits the saved bill through update-bill. review_reason is cleared
 					    so fixing the bill sends it on; it's shown above instead. Typing a
 					    comment keeps it in needs_review. A new key rebuilds the form. */}
-					{needsFixing && (
+					{canEditRecords && needsFixing && (
 						<BillDetailsForm
 							key={`${bill.id}-${formVersion}`}
 							bill={{ ...bill, review_reason: null }}
@@ -415,7 +428,7 @@ function UploadBillPage() {
 				</section>
 			</div>
 
-			{openForm === 'property' && (
+			{canEditRecords && openForm === 'property' && (
 				<PropertyForm
 					initialValues={propertyFromBill}
 					isSubmitting={isSaving}
@@ -425,7 +438,7 @@ function UploadBillPage() {
 				/>
 			)}
 
-			{openForm === 'vendor' && (
+			{canEditRecords && openForm === 'vendor' && (
 				<VendorForm
 					addAccountMode={Boolean(vendorId)}
 					vendorData={existingVendor}

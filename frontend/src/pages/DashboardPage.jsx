@@ -5,6 +5,7 @@ import { supabase } from "../../utils/supabase";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "../hooks/useUserProfile";
+import { canManageRecords } from "../utils/permissions";
 
 const cards = [
   { title: "Bills to Review", value: "0" },
@@ -32,6 +33,7 @@ function DashboardPage() {
   const { createProperty } = useProperties();
   const navigate = useNavigate();
   const { profile, authUser } = useUserProfile();
+  const canEditRecords = canManageRecords(profile?.role);
 
   // Wraps the Add Bill button and its menu, so we can tell inside clicks from outside ones
   const dropdownRef = useRef(null);
@@ -136,10 +138,13 @@ function DashboardPage() {
             </button>
             {open && (
               <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-auto sm:right-0">
-                {[
-                  { label: "Enter Manually", path: "/bills/manual" },
-                  { label: "Upload Bill", path: "/bills/upload" },
-                ].map(({ label, path }) => (
+                {(canEditRecords
+                  ? [
+                      { label: "Enter Manually", path: "/bills/manual" },
+                      { label: "Upload Bill", path: "/bills/upload" },
+                    ]
+                  : [{ label: "Upload Bill", path: "/bills/upload" }]
+                ).map(({ label, path }) => (
                   <button
                     key={label}
                     type="button"
@@ -155,26 +160,30 @@ function DashboardPage() {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError("");
-              setActiveForm("property");
-            }}
-            className="btn-secondary px-5 py-3 text-sm"
-          >
-            Add Property
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError("");
-              setActiveForm("vendor");
-            }}
-            className="btn-secondary px-5 py-3 text-sm"
-          >
-            Add Vendor
-          </button>
+          {canEditRecords && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setActiveForm("property");
+                }}
+                className="btn-secondary px-5 py-3 text-sm"
+              >
+                Add Property
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setActiveForm("vendor");
+                }}
+                className="btn-secondary px-5 py-3 text-sm"
+              >
+                Add Vendor
+              </button>
+            </>
+          )}
         </div>
       </section>
 
@@ -251,7 +260,7 @@ function DashboardPage() {
           </tbody>
         </table>
       </section>
-      {activeForm === "property" && (
+      {canEditRecords && activeForm === "property" && (
         <PropertyForm
           key="dashboard-property"
           isSubmitting={isSubmitting}
@@ -260,7 +269,7 @@ function DashboardPage() {
           onSubmit={handleCreateProperty}
         />
       )}
-      {activeForm === "vendor" && (
+      {canEditRecords && activeForm === "vendor" && (
         <VendorForm
           key="dashboard-vendor"
           isSubmitting={isSubmitting}
