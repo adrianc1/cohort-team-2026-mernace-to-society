@@ -53,6 +53,11 @@ const accountNumber = same((a, b) => normalize(a) === normalize(b));
 const money = same((a, b) => Math.abs(Number(a) - Number(b)) < 0.01);
 const upper = same((a, b) => String(a).trim().toUpperCase() === String(b).trim().toUpperCase());
 
+// "https://www.Example.com/" and "example.com" are the same site
+const site = (value) =>
+	String(value).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+const url = same((a, b) => site(a) === site(b));
+
 // Same number of line items, with the same amounts (order doesn't matter)
 function lineItems(expected = [], actual = []) {
 	if (expected.length !== actual.length) return false;
@@ -74,6 +79,7 @@ const FIELDS = [
 	['address.city', (bill) => bill.service_address?.city, text],
 	['address.state', (bill) => bill.service_address?.state, upper],
 	['address.zip', (bill) => bill.service_address?.zip, exact],
+	['portal_url', (bill) => bill.portal_url, url],
 	['line_items', (bill) => bill.line_items, lineItems],
 ];
 

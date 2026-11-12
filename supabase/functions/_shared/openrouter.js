@@ -59,6 +59,11 @@ const BILL_SCHEMA = {
 			required: ['street', 'city', 'state', 'zip'],
 			additionalProperties: false,
 		},
+		// Pre-fills the vendor's portal_url when adding a new vendor
+		portal_url: {
+			type: ['string', 'null'],
+			description: 'The website printed on the bill for paying it online',
+		},
 		line_items: {
 			type: 'array',
 			items: {
@@ -81,6 +86,7 @@ const BILL_SCHEMA = {
 		'due_date',
 		'customer_name',
 		'service_address',
+		'portal_url',
 		'line_items',
 	],
 	additionalProperties: false,
