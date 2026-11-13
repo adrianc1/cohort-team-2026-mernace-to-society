@@ -5,6 +5,7 @@ import {
   getInitials,
   useUserProfile,
 } from "../hooks/useUserProfile";
+import { canManageTeam } from "../utils/permissions";
 
 const tabs = ["Profile", "Organization", "Payment Methods", "Team & Roles"];
 
@@ -80,15 +81,15 @@ const teamColumns = [
 const roleDescriptions = [
   {
     role: "Staff",
-    note: "Can upload and enter bills, and view properties and vendors.",
+    note: "Can upload and view bills, properties, and vendors, but cannot edit records.",
   },
   {
     role: "Manager",
-    note: "Everything staff can do, plus approve, reject, and mark bills paid.",
+    note: "Can edit bills, properties, and vendors, manage team members, and handle bill approvals.",
   },
   {
     role: "Admin",
-    note: "Full access, including payment methods, team members, and settings.",
+    note: "Can edit bills, properties, and vendors, manage team members, and access organization settings.",
   },
 ];
 
@@ -134,6 +135,7 @@ function AccountSettingsPage() {
   const displayedName = profile?.name ?? "";
   const initials = getInitials(displayedName, authUser?.email);
   const isOrganizationAdmin = profile?.role?.toLowerCase() === "admin";
+  const canEditTeam = canManageTeam(profile?.role);
 
   useEffect(() => {
     // Load organization details only when their tab is opened.
@@ -493,22 +495,6 @@ function AccountSettingsPage() {
                     className={`${inputClass} bg-gray-100`}
                   />
                 </div>
-                <div>
-                  <label htmlFor="role" className="text-sm font-semibold">
-                    Role
-                  </label>
-                  <input
-                    id="role"
-                    type="text"
-                    value={formatRole(profile?.role)}
-                    readOnly
-                    className={`${inputClass} bg-gray-100`}
-                    aria-describedby="role-help"
-                  />
-                  <p id="role-help" className="mt-1 text-xs text-gray-600">
-                    Your role is managed by your organization administrator.
-                  </p>
-                </div>
               </div>
 
               <button
@@ -670,10 +656,18 @@ function AccountSettingsPage() {
                   account picks one of these.
                 </p>
               </div>
-              <a href="#add-method" className="btn-primary px-5 py-3 text-sm">
-                + Add Payment Method
-              </a>
+              {isOrganizationAdmin && (
+                <a href="#add-method" className="btn-primary px-5 py-3 text-sm">
+                  + Add Payment Method
+                </a>
+              )}
             </div>
+
+            {!isOrganizationAdmin && (
+              <p className="mt-4 text-sm text-gray-600">
+                Only organization admins can manage payment methods.
+              </p>
+            )}
 
             <table className="mt-4 w-full text-left text-sm">
               <thead className="hidden md:table-header-group">
@@ -683,9 +677,11 @@ function AccountSettingsPage() {
                       {col.label}
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-right font-semibold">
-                    Actions
-                  </th>
+                  {isOrganizationAdmin && (
+                    <th className="px-4 py-3 text-right font-semibold">
+                      Actions
+                    </th>
+                  )}
                 </tr>
               </thead>
 
@@ -709,19 +705,21 @@ function AccountSettingsPage() {
                       )}
                     </td>
                   ))}
-                  <td className="block pt-3 md:table-cell md:px-4 md:py-4">
-                    <div className="flex gap-2 md:justify-end">
-                      <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
-                        Make Default
-                      </button>
-                      <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
-                        Edit
-                      </button>
-                      <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
-                        Remove
-                      </button>
-                    </div>
-                  </td>
+                  {isOrganizationAdmin && (
+                    <td className="block pt-3 md:table-cell md:px-4 md:py-4">
+                      <div className="flex gap-2 md:justify-end">
+                        <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
+                          Make Default
+                        </button>
+                        <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
+                          Edit
+                        </button>
+                        <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
+                          Remove
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               </tbody>
             </table>
@@ -733,7 +731,8 @@ function AccountSettingsPage() {
           </section>
 
           {/* Add payment method form */}
-          <section id="add-method" className="card mt-8">
+          {isOrganizationAdmin && (
+            <section id="add-method" className="card mt-8">
             <h2 className="border-b border-black pb-4 text-lg font-bold">
               Add Payment Method
             </h2>
@@ -792,7 +791,8 @@ function AccountSettingsPage() {
                 Save Method
               </button>
             </form>
-          </section>
+            </section>
+          )}
         </>
       )}
 
