@@ -824,7 +824,7 @@ function AccountSettingsPage() {
                       {col.label}
                     </th>
                   ))}
-                  {canEditTeam && (
+                  {isOrganizationAdmin && (
                     <th className="px-4 py-3 text-right font-semibold">
                       Actions
                     </th>
@@ -916,14 +916,6 @@ function AccountSettingsPage() {
                       )}
                     </tr>
                   ))}
-                  {canEditTeam && (
-                    <td className="px-4 py-3 text-right">
-                      <button className="btn-secondary px-4 py-2 text-xs">
-                        Edit
-                      </button>
-                    </td>
-                  )}
-                </tr>
               </tbody>
             </table>
           </section>
