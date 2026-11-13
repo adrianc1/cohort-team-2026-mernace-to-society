@@ -2,6 +2,8 @@ import BillDetailsForm from "../components/BillDetailsForm";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { canManageRecords } from "../utils/permissions";
 
 const billColumns = [
   "Invoice number",
@@ -42,6 +44,8 @@ function BillsPage() {
   const [sortBy, setSortBy] = useState("due_date_asc");
 
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
+  const canEditRecords = canManageRecords(profile?.role);
 
   // Wraps the Add Bill button and its menu, so we can tell inside clicks from outside ones
   const dropdownRef = useRef(null);
@@ -77,7 +81,7 @@ function BillsPage() {
         supabase
           .from("bill")
           .select(
-            "id, invoice_number, issue_date, due_date, amount, status, extracted_vendor_name, review_reason, property_id, vendor_account_id, property(name), vendor_account(service, vendor(name))"
+            "id, invoice_number, issue_date, due_date, amount, status, extracted_vendor_name, review_reason, property_id, vendor_account_id, property(name), vendor_account(service, vendor(name))",
           ),
         supabase.from("property").select("id, name").order("name"),
       ]);
@@ -144,7 +148,9 @@ function BillsPage() {
         <div>
           <h1 className="font-serif text-2xl font-bold">Bills</h1>
           <p className="mt-2 text-sm text-gray-600">
-            View and manage bills for your properties.
+            {canEditRecords
+              ? "View and manage bills for your properties."
+              : "View bills or upload a new bill for review."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -158,10 +164,13 @@ function BillsPage() {
             </button>
             {open && (
               <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-auto sm:right-0">
-                {[
-                  { label: "Enter Manually", path: "/bills/manual" },
-                  { label: "Upload Bill", path: "/bills/upload" },
-                ].map(({ label, path }) => (
+                {(canEditRecords
+                  ? [
+                      { label: "Enter Manually", path: "/bills/manual" },
+                      { label: "Upload Bill", path: "/bills/upload" },
+                    ]
+                  : [{ label: "Upload Bill", path: "/bills/upload" }]
+                ).map(({ label, path }) => (
                   <button
                     key={label}
                     type="button"
@@ -185,7 +194,10 @@ function BillsPage() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Property Filter */}
           <div>
-            <label htmlFor="filter-property" className="block text-xs font-medium text-gray-500 mb-1">
+            <label
+              htmlFor="filter-property"
+              className="block text-xs font-medium text-gray-500 mb-1"
+            >
               Property
             </label>
             <select
@@ -205,7 +217,10 @@ function BillsPage() {
 
           {/* Status Filter */}
           <div>
-            <label htmlFor="filter-status" className="block text-xs font-medium text-gray-500 mb-1">
+            <label
+              htmlFor="filter-status"
+              className="block text-xs font-medium text-gray-500 mb-1"
+            >
               Status
             </label>
             <select
@@ -217,14 +232,19 @@ function BillsPage() {
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
               <option value="needs_review">Needs Review</option>
+              <option value="approved">Approved</option>
               <option value="paid">Paid</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
 
         {/* Sort Controls */}
         <div>
-          <label htmlFor="sort-by" className="block text-xs font-medium text-gray-500 mb-1">
+          <label
+            htmlFor="sort-by"
+            className="block text-xs font-medium text-gray-500 mb-1"
+          >
             Sort By
           </label>
           <select
@@ -263,21 +283,34 @@ function BillsPage() {
           <tbody className="block md:table-row-group">
             {loading ? (
               <tr className="block md:table-row">
-                <td colSpan={billColumns.length} className={cellMessageClassName}>
+                <td
+                  colSpan={billColumns.length}
+                  className={cellMessageClassName}
+                >
                   Loading bills…
                 </td>
               </tr>
             ) : errorMessage ? (
               <tr className="block md:table-row">
-                <td colSpan={billColumns.length} className={`${cellMessageClassName} text-red-700`}>
+                <td
+                  colSpan={billColumns.length}
+                  className={`${cellMessageClassName} text-red-700`}
+                >
                   {errorMessage}
                 </td>
               </tr>
             ) : filteredAndSortedBills.length === 0 ? (
               <tr className="block md:table-row">
-                <td colSpan={billColumns.length} className={cellMessageClassName}>
-                  <p className="font-medium text-gray-800">No bills match your filters</p>
-                  <p className="mt-2 text-xs text-gray-500">Try adjusting your property or status filters.</p>
+                <td
+                  colSpan={billColumns.length}
+                  className={cellMessageClassName}
+                >
+                  <p className="font-medium text-gray-800">
+                    No bills match your filters
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Try adjusting your property or status filters.
+                  </p>
                 </td>
               </tr>
             ) : (
@@ -333,15 +366,27 @@ function BillsPage() {
                     {formatBillStatus(bill.status)}
                   </td>
                   <td className="block pt-2 md:table-cell md:px-4 md:py-3">
-                    {["pending", "needs_review"].includes(bill.status) && (
-                      <button
-                        type="button"
-                        onClick={() => setEditingBill(bill)}
-                        className="btn-secondary w-full px-4 py-2 text-xs md:w-auto md:bg-transparent md:p-0 md:text-sm md:font-medium md:text-primary md:hover:bg-transparent md:hover:text-primary-hover"
-                      >
-                        Edit
-                      </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {canEditRecords &&
+                        ["pending", "needs_review"].includes(bill.status) && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingBill(bill)}
+                          className="btn-secondary w-full px-4 py-2 text-xs md:w-auto md:bg-transparent md:p-0 md:text-sm md:font-medium md:text-primary md:hover:bg-transparent md:hover:text-primary-hover"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canEditRecords && bill.status === "approved" && (
+                        <button
+                          type="button"
+                          // TODO: open the payment flow once payments are built
+                          className="btn-primary w-full px-4 py-2 text-xs md:w-auto"
+                        >
+                          Pay
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -350,7 +395,7 @@ function BillsPage() {
         </table>
       </section>
 
-      {editingBill && (
+      {canEditRecords && editingBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
           <div className="my-auto w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:p-6">
             <div className="flex items-center justify-between">
