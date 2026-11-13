@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import BillDetailsForm from "../components/BillDetailsForm";
 import { supabase } from "../../utils/supabase";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { canManageRecords } from "../utils/permissions";
 
 const formatCurrency = (amount) =>
   Number(amount || 0).toLocaleString("en-US", {
@@ -17,6 +19,8 @@ function formatBillStatus(status) {
 function BillDetailsPage() {
   const { billId } = useParams();
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
+  const canEditRecords = canManageRecords(profile?.role);
 
   const [bill, setBill] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -96,7 +100,8 @@ function BillDetailsPage() {
     { label: "Status", value: formatBillStatus(bill?.status) },
   ];
 
-  const canEdit = bill && ["pending", "needs_review"].includes(bill.status);
+  const canEdit =
+    canEditRecords && bill && ["pending", "needs_review"].includes(bill.status);
 
   return (
     <>
@@ -192,7 +197,7 @@ function BillDetailsPage() {
       )}
 
       {/* Edit Bill Modal */}
-      {showEditForm && bill && (
+      {canEdit && showEditForm && bill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
           <div className="my-auto w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:p-6">
             <div className="flex items-center justify-between">

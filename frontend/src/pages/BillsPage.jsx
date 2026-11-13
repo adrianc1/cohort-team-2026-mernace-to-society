@@ -2,6 +2,8 @@ import BillDetailsForm from "../components/BillDetailsForm";
 import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../../utils/supabase";
+import { useUserProfile } from "../hooks/useUserProfile";
+import { canManageRecords } from "../utils/permissions";
 
 const billColumns = [
   "Invoice number",
@@ -42,6 +44,8 @@ function BillsPage() {
   const [sortBy, setSortBy] = useState("due_date_asc");
 
   const navigate = useNavigate();
+  const { profile } = useUserProfile();
+  const canEditRecords = canManageRecords(profile?.role);
 
   // Wraps the Add Bill button and its menu, so we can tell inside clicks from outside ones
   const dropdownRef = useRef(null);
@@ -144,7 +148,9 @@ function BillsPage() {
         <div>
           <h1 className="font-serif text-2xl font-bold">Bills</h1>
           <p className="mt-2 text-sm text-gray-600">
-            View and manage bills for your properties.
+            {canEditRecords
+              ? "View and manage bills for your properties."
+              : "View bills or upload a new bill for review."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -158,10 +164,13 @@ function BillsPage() {
             </button>
             {open && (
               <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-auto sm:right-0">
-                {[
-                  { label: "Enter Manually", path: "/bills/manual" },
-                  { label: "Upload Bill", path: "/bills/upload" },
-                ].map(({ label, path }) => (
+                {(canEditRecords
+                  ? [
+                      { label: "Enter Manually", path: "/bills/manual" },
+                      { label: "Upload Bill", path: "/bills/upload" },
+                    ]
+                  : [{ label: "Upload Bill", path: "/bills/upload" }]
+                ).map(({ label, path }) => (
                   <button
                     key={label}
                     type="button"
@@ -358,7 +367,8 @@ function BillsPage() {
                   </td>
                   <td className="block pt-2 md:table-cell md:px-4 md:py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      {["pending", "needs_review"].includes(bill.status) && (
+                      {canEditRecords &&
+                        ["pending", "needs_review"].includes(bill.status) && (
                         <button
                           type="button"
                           onClick={() => setEditingBill(bill)}
@@ -367,7 +377,7 @@ function BillsPage() {
                           Edit
                         </button>
                       )}
-                      {bill.status === "approved" && (
+                      {canEditRecords && bill.status === "approved" && (
                         <button
                           type="button"
                           // TODO: open the payment flow once payments are built
@@ -385,7 +395,7 @@ function BillsPage() {
         </table>
       </section>
 
-      {editingBill && (
+      {canEditRecords && editingBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4">
           <div className="my-auto w-full max-w-2xl rounded-xl bg-white p-4 shadow-xl sm:p-6">
             <div className="flex items-center justify-between">

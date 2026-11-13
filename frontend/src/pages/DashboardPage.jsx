@@ -1,26 +1,18 @@
 import PropertyForm from "../components/PropertyForm";
 import VendorForm from "../components/VendorForm";
+import RecentBills from "../components/RecentBills";
 import { useProperties } from "../hooks/useProperties";
 import { supabase } from "../../utils/supabase";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserProfile } from "../hooks/useUserProfile";
+import { canManageRecords } from "../utils/permissions";
 
 const cards = [
   { title: "Bills to Review", value: "0" },
   { title: "Outstanding / Due Soon", value: "$0", note: "0 bills due" },
   { title: "Paid This Month", value: "$0", note: "0 bills paid" },
   { title: "Monthly Spending Total", value: "$0" },
-];
-
-// keys match current MVP ERD tables
-const columns = [
-  { label: "Bill #", key: "bill_number" },
-  { label: "Property", key: "property" },
-  { label: "Vendor", key: "vendor" },
-  { label: "Due Date", key: "due_date" },
-  { label: "Amount", key: "amount" },
-  { label: "Status", key: "status" },
 ];
 
 function DashboardPage() {
@@ -32,6 +24,7 @@ function DashboardPage() {
   const { createProperty } = useProperties();
   const navigate = useNavigate();
   const { profile, authUser } = useUserProfile();
+  const canEditRecords = canManageRecords(profile?.role);
 
   // Wraps the Add Bill button and its menu, so we can tell inside clicks from outside ones
   const dropdownRef = useRef(null);
@@ -136,10 +129,13 @@ function DashboardPage() {
             </button>
             {open && (
               <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-auto sm:right-0">
-                {[
-                  { label: "Enter Manually", path: "/bills/manual" },
-                  { label: "Upload Bill", path: "/bills/upload" },
-                ].map(({ label, path }) => (
+                {(canEditRecords
+                  ? [
+                      { label: "Enter Manually", path: "/bills/manual" },
+                      { label: "Upload Bill", path: "/bills/upload" },
+                    ]
+                  : [{ label: "Upload Bill", path: "/bills/upload" }]
+                ).map(({ label, path }) => (
                   <button
                     key={label}
                     type="button"
@@ -155,26 +151,30 @@ function DashboardPage() {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError("");
-              setActiveForm("property");
-            }}
-            className="btn-secondary px-5 py-3 text-sm"
-          >
-            Add Property
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setFormError("");
-              setActiveForm("vendor");
-            }}
-            className="btn-secondary px-5 py-3 text-sm"
-          >
-            Add Vendor
-          </button>
+          {canEditRecords && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setActiveForm("property");
+                }}
+                className="btn-secondary px-5 py-3 text-sm"
+              >
+                Add Property
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormError("");
+                  setActiveForm("vendor");
+                }}
+                className="btn-secondary px-5 py-3 text-sm"
+              >
+                Add Vendor
+              </button>
+            </>
+          )}
         </div>
       </section>
 
@@ -195,55 +195,8 @@ function DashboardPage() {
         ))}
       </section>
 
-      {/* Property Bills table */}
-      <section className="card mt-8">
-        <h2 className="border-b border-black pb-4 text-lg font-bold">
-          Property Bills
-        </h2>
-
-        <table className="mt-4 w-full text-left text-sm">
-          <thead className="hidden md:table-header-group">
-            <tr className="text-xs uppercase">
-              {columns.map((col) => (
-                <th key={col.key} className="px-4 py-3 font-semibold">
-                  {col.label}
-                </th>
-              ))}
-              <th className="px-4 py-3 text-right font-semibold">Action</th>
-            </tr>
-          </thead>
-
-          <tbody className="block md:table-row-group">
-            <tr className="mb-4 block rounded-lg bg-white p-4 md:mb-0 md:table-row md:bg-transparent md:p-0">
-              {columns.map((col) => (
-                <td
-                  key={col.key}
-                  className="flex justify-between py-1 md:table-cell md:px-4 md:py-4"
-                >
-                  <span className="font-semibold md:hidden">{col.label}</span>
-                  {col.key === "status" ? (
-                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
-                      Pending
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-              ))}
-              <td className="block pt-3 md:table-cell md:px-4 md:py-4">
-                <div className="flex gap-2 md:justify-end">
-                  <button className="btn-secondary flex-1 px-4 py-2 text-xs md:flex-none">
-                    Review
-                  </button>
-                  <button className="btn-primary flex-1 px-4 py-2 text-xs md:flex-none">
-                    Mark Paid
-                  </button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+      {/* Recent bills */}
+      <RecentBills />
       {activeForm === "property" && (
         <PropertyForm
           key="dashboard-property"
@@ -253,7 +206,7 @@ function DashboardPage() {
           onSubmit={handleCreateProperty}
         />
       )}
-      {activeForm === "vendor" && (
+      {canEditRecords && activeForm === "vendor" && (
         <VendorForm
           key="dashboard-vendor"
           isSubmitting={isSubmitting}
