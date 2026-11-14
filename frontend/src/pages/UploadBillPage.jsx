@@ -445,6 +445,7 @@ function UploadBillPage() {
 					initialValues={{
 						name: extracted?.vendor_name,
 						account_number: extracted?.account_number,
+						portal_url: extracted?.portal_url,
 						property_id: knownProperty?.id,
 					}}
 					isSubmitting={isSaving}
