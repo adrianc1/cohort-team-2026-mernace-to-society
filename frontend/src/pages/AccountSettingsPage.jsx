@@ -5,7 +5,6 @@ import {
   getInitials,
   useUserProfile,
 } from "../hooks/useUserProfile";
-import { Link } from "react-router-dom";
 import { canManageTeam } from "../utils/permissions";
 
 const tabs = ["Profile", "Organization", "Payment Methods", "Team & Roles"];
@@ -573,15 +572,6 @@ function AccountSettingsPage() {
                     {isUpdating ? "Updating..." : "Update password"}
                   </button>
                 </form>
-
-                <Link
-                  to="/forgot-password"
-                  state={{ email: authUser?.email ?? profile?.email ?? "" }}
-                  className="inline-block mt-2 cursor-pointer text-sm font-semibold text-primary hover:underline"
-                >
-                  Forgot password?
-                </Link>
-
               </div>
             </div>
           </section>
