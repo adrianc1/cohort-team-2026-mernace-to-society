@@ -10,7 +10,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from parent worker folder
+// Load environment variables from the project root folder
 dotenv.config({
   path: path.join(__dirname, "../../.env"),
 });
@@ -26,7 +26,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey);
 
 /**
  * Fetches the bill with property context, vendor account number, 
- * and the master vendor portal_url.
+ * master vendor portal_url, and associated organization payment methods.
  */
 export async function fetchBillWithContext(billId) {
   console.log(`\nFetching bill ID ${billId} with context from Supabase...`);
@@ -38,8 +38,10 @@ export async function fetchBillWithContext(billId) {
       amount,
       invoice_number,
       status,
+      org_id,
       property:property_id (
         id,
+        name,
         street,
         city,
         state,
@@ -63,6 +65,23 @@ export async function fetchBillWithContext(billId) {
     throw new Error(`Failed to retrieve bill context: ${error?.message || "Bill not found"}`);
   }
 
+  // Fetch saved payment methods using org_id safely
+  let paymentMethods = [];
+  if (bill.org_id) {
+    const { data: pmData, error: pmError } = await supabase
+      .from("payment_method")
+      .select("id, type, name_on_card, card_number, account_number, expiration_date")
+      .eq("org_id", bill.org_id);
+
+    if (pmError) {
+      console.warn("Could not fetch saved payment methods:", pmError.message);
+    } else {
+      paymentMethods = pmData || [];
+    }
+  } else {
+    console.warn("⚠️ Bill record is missing org_id, skipping payment methods lookup.");
+  }
+
   const portalUrl = bill.vendor_account?.vendor?.portal_url;
 
   if (!portalUrl) {
@@ -77,6 +96,7 @@ export async function fetchBillWithContext(billId) {
     accountNumber: bill.vendor_account?.account_number,
     vendorName: bill.vendor_account?.vendor?.name,
     property: bill.property,
+    paymentMethods,
   };
 }
 

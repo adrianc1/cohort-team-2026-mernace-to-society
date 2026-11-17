@@ -11,12 +11,13 @@ import { initializeBrowser } from "./core/browser.js";
 import { navigateToLogin } from "./actions/auth/navigate-login.js";
 import { authenticateCustomer } from "./actions/auth/authenticate.js";
 import { navigateToBillPay } from "./actions/navigation/find-billpay.js";
-import { isTrustedDomain } from "./utils/security.js";
+import { verifyBillDetails } from "./actions/verification/verify-bill.js";
+import { executeBillPayment } from "./actions/payment/pay-bill.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from worker/.env
+// Load environment variables from the project root folder
 dotenv.config({
   path: path.join(__dirname, "../.env"),
 });
@@ -32,13 +33,14 @@ async function runAutomation(billId) {
     console.log(`STARTING AUTOMATION FOR BILL: ${billId}`);
     console.log(`=================================\n`);
 
-    // 1. Fetch bill context, master portal_url, and property account number
+    // 1. Fetch bill context, master portal_url, property account number, and payment methods
     const bill = await fetchBillWithContext(billId);
 
     console.log(`Vendor Name: ${bill.vendorName}`);
     console.log(`Master Portal URL: ${bill.portalUrl}`);
     console.log(`Target Account Number: ${bill.accountNumber || "N/A"}`);
     console.log(`Property Address: ${bill.property?.street}, ${bill.property?.city}`);
+    console.log(`Loaded Payment Methods: ${bill.paymentMethods.length}`);
 
     // 2. Configure trusted domains for security checks
     const initialDomain = new URL(bill.portalUrl).hostname.toLowerCase();
@@ -107,14 +109,24 @@ async function runAutomation(billId) {
       trustedDomains
     );
 
-    // 8. Final Success Logging
+    // 8. Extract & Verify Bill Details from Page DOM
+    await verifyBillDetails(page, stagehand, bill);
+
+    // 9. If bill is approved, proceed to automated payment execution
+    if (bill.status === "approved") {
+      console.log("\nBill status is 'approved'. Proceeding to payment execution...");
+      await executeBillPayment(page, stagehand, bill);
+    } else {
+      console.log(`\nBill status is '${bill.status}'. Stopping before payment execution.`);
+    }
+
+    // 10. Final Success Logging
     console.log(`\n=================================`);
     console.log("AUTOMATION COMPLETED SUCCESSFULLY");
     console.log(`=================================\n`);
     console.log("Vendor:", bill.vendorName);
     console.log("Account Number:", bill.accountNumber);
     console.log("Current Page URL:", await page.url());
-    console.log("Status: AUTHENTICATED & NAVIGATED (No payments submitted)");
 
   } catch (error) {
     console.error(`\n❌ AUTOMATION ERROR: ${error.message}`);
@@ -151,7 +163,7 @@ async function runAutomation(billId) {
 const BILL_ID = process.env.BILL_ID;
 
 if (!BILL_ID) {
-  throw new Error("Missing BILL_ID environment variable. Run with BILL_ID=<uuid> node index.js");
+  throw new Error("Missing BILL_ID environment variable. Run with BILL_ID=<uuid> node worker/index.js");
 }
 
 runAutomation(BILL_ID);
