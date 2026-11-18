@@ -26,7 +26,6 @@ function BillDetailsPage() {
   const [signedReceiptUrl, setSignedReceiptUrl] = useState(null);
   
   const [approving, setApproving] = useState(false);
-  const [paying, setPaying] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const fetchPaymentDetails = useCallback(async (currentBillId) => {

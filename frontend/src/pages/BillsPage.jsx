@@ -262,40 +262,101 @@ function BillsPage() {
           </p>
         </div>
 
-        <div className="table-card mt-4">
-          <table className="stacked-table">
-            <thead>
-              <tr>
-                {billColumns.map((column) => (
-                  <th key={column}>{column}</th>
-                ))}
+        <table className="mt-4 w-full text-left text-sm">
+          <thead className="hidden md:table-header-group">
+            <tr className="text-xs uppercase">
+              {billColumns.map((column) => (
+                <th key={column} className="px-4 py-3 font-semibold">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="block md:table-row-group">
+            {loading ? (
+              <tr className="block md:table-row">
+                <td
+                  colSpan={billColumns.length}
+                  className={cellMessageClassName}
+                >
+                  Loading bills…
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr className="stacked-message-row">
-                  <td colSpan={billColumns.length} className="stacked-message">
-                    Loading bills…
+            ) : errorMessage ? (
+              <tr className="block md:table-row">
+                <td
+                  colSpan={billColumns.length}
+                  className={`${cellMessageClassName} text-red-700`}
+                >
+                  {errorMessage}
+                </td>
+              </tr>
+            ) : filteredAndSortedBills.length === 0 ? (
+              <tr className="block md:table-row">
+                <td
+                  colSpan={billColumns.length}
+                  className={cellMessageClassName}
+                >
+                  <p className="font-medium text-gray-800">
+                    No bills match your filters
+                  </p>
+                  <p className="mt-2 text-xs text-gray-500">
+                    Try adjusting your property or status filters.
+                  </p>
+                </td>
+              </tr>
+            ) : (
+              filteredAndSortedBills.map((bill) => (
+                <tr key={bill.id} className={stackedRowClassName}>
+                  <td className={stackedCellClassName}>
+                    <span className="font-semibold md:hidden">Invoice #</span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/bills/${bill.id}`)}
+                      className="link text-left"
+                    >
+                      {bill.invoice_number ?? "—"}
+                    </button>
                   </td>
-                </tr>
-              ) : errorMessage ? (
-                <tr className="stacked-message-row">
+                  <td className={stackedCellClassName}>
+                    <span className="font-semibold md:hidden">Property</span>
+                    {bill.property?.name ?? "—"}
+                  </td>
+                  <td className={stackedCellClassName}>
+                    <span className="font-semibold md:hidden">Vendor</span>
+                    <span className="text-right md:text-left">
+                      {bill.vendor_account?.vendor?.name ??
+                        bill.extracted_vendor_name ??
+                        "—"}
+                      {bill.vendor_account?.service && (
+                        <span className="text-gray-600">
+                          {" "}
+                          · {bill.vendor_account.service}
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td
-                    colSpan={billColumns.length}
-                    className="stacked-message text-red-700"
+                    className={`${stackedCellClassName} md:whitespace-nowrap`}
                   >
-                    {errorMessage}
+                    <span className="font-semibold md:hidden">Issue Date</span>
+                    {formatDate(bill.issue_date)}
                   </td>
-                </tr>
-              ) : filteredAndSortedBills.length === 0 ? (
-                <tr className="stacked-message-row">
-                  <td colSpan={billColumns.length} className="stacked-message">
-                    <p className="font-medium text-gray-800">
-                      No bills match your filters
-                    </p>
-                    <p className="mt-2 text-xs text-gray-500">
-                      Try adjusting your property or status filters.
-                    </p>
+                  <td
+                    className={`${stackedCellClassName} md:whitespace-nowrap`}
+                  >
+                    <span className="font-semibold md:hidden">Due Date</span>
+                    {formatDate(bill.due_date)}
+                  </td>
+                  <td
+                    className={`${stackedCellClassName} md:whitespace-nowrap`}
+                  >
+                    <span className="font-semibold md:hidden">Amount</span>
+                    {formatCurrency(bill.amount)}
+                  </td>
+                  <td className={stackedCellClassName}>
+                    <span className="font-semibold md:hidden">Status</span>
+                    <StatusBadge status={bill.status} />
                   </td>
                   <td className="block pt-2 md:table-cell md:px-4 md:py-3">
                     <div className="flex flex-wrap items-center gap-2">
@@ -314,10 +375,10 @@ function BillsPage() {
                         ) && (
                           <button
                             type="button"
-                            // TODO: open the payment flow once payments are built
-                            className="btn-primary w-full px-4 py-2 text-xs @table:w-auto"
+                            onClick={() => navigate(`/bills/${bill.id}`)}
+                            className="btn-secondary w-full px-4 py-2 text-xs md:w-auto"
                           >
-                            Pay
+                            Finish
                           </button>
                         )}
                       {canEditRecords && bill.status === "approved" && (
