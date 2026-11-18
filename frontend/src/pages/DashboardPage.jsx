@@ -122,7 +122,7 @@ function DashboardPage() {
               + Add Bill ▾
             </button>
             {open && (
-              <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg">
+              <div className="absolute right-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-0 sm:right-auto">
                 {(canEditRecords
                   ? [
                       { label: "Enter Manually", path: "/bills/manual" },
