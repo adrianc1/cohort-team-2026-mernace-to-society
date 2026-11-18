@@ -17,16 +17,33 @@ const serviceTypes = [
 
 // width keeps the columns lined up across every service type table
 const columns = [
-  { label: "Vendor Name", key: "name", mobile: true, width: "md:w-1/4" },
-  { label: "Also On Bills As", key: "aliases" },
-  { label: "Accounts", key: "accounts", width: "md:w-24" },
-  { label: "Open Bills", key: "open_bills", width: "md:w-28" },
-  { label: "Status", key: "status", mobile: true, width: "md:w-28" },
+  {
+    label: "Vendor Name",
+    key: "name",
+    mobile: true,
+    width: "@table-compact:w-1/4",
+  },
+  { label: "Also On Bills As", key: "aliases", wideOnly: true },
+  { label: "Accounts", key: "accounts", width: "@table-compact:w-24" },
+  { label: "Open Bills", key: "open_bills", width: "@table-compact:w-28" },
+  {
+    label: "Status",
+    key: "status",
+    mobile: true,
+    width: "@table-compact:w-28",
+  },
 ];
 
-const hideOnMobile = (col) => (col.mobile ? "" : "hidden md:table-cell");
+const hideOnMobile = (col) =>
+  col.mobile ? "" : col.wideOnly ? "hidden @table:table-cell" : "table-only";
 
-function renderVendorCell(col, vendor, accountCount) {
+function renderVendorCell(
+  col,
+  vendor,
+  accountCount,
+  openBillCounts,
+  openBillCountError,
+) {
   if (col.key === "name") {
     return (
       <Link to={`/vendors/${vendor.id}`} className="link">
@@ -42,6 +59,11 @@ function renderVendorCell(col, vendor, accountCount) {
   }
 
   if (col.key === "accounts") return accountCount;
+
+  if (col.key === "open_bills") {
+    if (openBillCountError) return "—";
+    return openBillCounts ? (openBillCounts[vendor.id] ?? 0) : "…";
+  }
 
   if (col.key === "status") {
     return (
@@ -66,6 +88,7 @@ function VendorsPage() {
   const canEditRecords = canManageRecords(profile?.role);
 
   const [openBillCount, setOpenBillCount] = useState(null);
+  const [openBillCounts, setOpenBillCounts] = useState(null);
   const [isLoadingOpenBillCount, setIsLoadingOpenBillCount] = useState(true);
   const [openBillCountError, setOpenBillCountError] = useState("");
   const [showVendorForm, setShowVendorForm] = useState(false);
@@ -114,45 +137,83 @@ function VendorsPage() {
 
   useEffect(() => {
     let isMounted = true;
+    let requestId = 0;
 
-    async function loadOpenBillCount() {
+    async function loadOpenBillCounts() {
+      const currentRequestId = ++requestId;
+      setIsLoadingOpenBillCount(true);
+      setOpenBillCountError("");
+
       try {
-        const { count, error: queryError } = await supabase
-          .from("bill")
-          .select("id, vendor_account!inner(vendor_id)", {
-            count: "exact",
-            head: true,
-          })
-          .in("status", ["pending", "needs_review", "approved"]);
+        const countsByVendor = {};
+        let totalCount = 0;
+        const pageSize = 1000;
 
-        if (queryError) throw queryError;
-        if (count === null) {
-          throw new Error("Supabase did not return the open bill count.");
+        for (let from = 0; ; from += pageSize) {
+          const { data, error: queryError } = await supabase
+            .from("bill")
+            .select("vendor_account(vendor_id)")
+            .in("status", ["pending", "needs_review", "approved"])
+            .order("id")
+            .range(from, from + pageSize - 1);
+
+          if (queryError) throw queryError;
+
+          const bills = data ?? [];
+          totalCount += bills.length;
+          for (const bill of bills) {
+            const vendorId = bill.vendor_account?.vendor_id;
+            if (vendorId) {
+              countsByVendor[vendorId] = (countsByVendor[vendorId] ?? 0) + 1;
+            }
+          }
+
+          if (bills.length < pageSize) break;
         }
 
-        if (isMounted) {
-          setOpenBillCount(count);
-          setOpenBillCountError("");
-        }
+        if (!isMounted || currentRequestId !== requestId) return;
+        setOpenBillCount(totalCount);
+        setOpenBillCounts(countsByVendor);
       } catch (caughtError) {
-        if (isMounted) {
-          setOpenBillCountError(
-            caughtError instanceof Error
-              ? caughtError.message
-              : "Could not load open bills.",
-          );
-        }
+        if (!isMounted || currentRequestId !== requestId) return;
+        setOpenBillCountError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Could not load open bills.",
+        );
       } finally {
-        if (isMounted) {
+        if (isMounted && currentRequestId === requestId) {
           setIsLoadingOpenBillCount(false);
         }
       }
     }
 
-    loadOpenBillCount();
+    const channel = supabase
+      .channel("vendors-open-bill-counts")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "bill" },
+        loadOpenBillCounts,
+      )
+      .subscribe((status, error) => {
+        if (isMounted && status === "SUBSCRIBED") {
+          void loadOpenBillCounts();
+        } else if (
+          isMounted &&
+          (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
+        ) {
+          setOpenBillCountError(
+            error?.message ?? "Could not subscribe to bill updates.",
+          );
+        }
+      });
+
+    loadOpenBillCounts();
 
     return () => {
       isMounted = false;
+      requestId += 1;
+      void supabase.removeChannel(channel);
     };
   }, []);
 
@@ -378,12 +439,12 @@ function VendorsPage() {
         ))}
 
         {canEditRecords && (
-          <th className="hidden px-4 py-3 font-semibold md:table-cell md:w-24">
+          <th className="table-only px-4 py-3 font-semibold @table-compact:w-24">
             Actions
           </th>
         )}
 
-        <th className="w-8 md:hidden">
+        <th className="w-8 @table-compact:hidden">
           <span className="sr-only">Open</span>
         </th>
       </tr>
@@ -407,12 +468,18 @@ function VendorsPage() {
 
         {columns.map((col) => (
           <td key={col.key} className={`px-4 py-3 ${hideOnMobile(col)}`}>
-            {renderVendorCell(col, vendor, accountCount)}
+            {renderVendorCell(
+              col,
+              vendor,
+              accountCount,
+              openBillCounts,
+              openBillCountError,
+            )}
           </td>
         ))}
 
         {canEditRecords && (
-          <td className="hidden px-4 py-3 md:table-cell">
+          <td className="table-only px-4 py-3">
             <button
               type="button"
               onClick={() => {
@@ -428,7 +495,10 @@ function VendorsPage() {
           </td>
         )}
 
-        <td className="pr-4 text-right md:hidden" aria-hidden="true">
+        <td
+          className="pr-4 text-right @table-compact:hidden"
+          aria-hidden="true"
+        >
           →
         </td>
       </tr>
@@ -570,32 +640,29 @@ function VendorsPage() {
                   </span>
                 </div>
 
-                <table className="mt-2 w-full rounded-lg bg-white text-left text-sm md:table-fixed">
-                  {tableHead}
-                  <tbody>
-                    {typeVendors.length === 0 ? (
-                      <tr className="border-t border-secondary">
-                        <td
-                          colSpan={columns.length + (canEditRecords ? 3 : 1)}
-                          className="px-4 py-3 text-gray-600"
-                        >
-                          No vendors for this service type.
-                        </td>
-                      </tr>
-                    ) : (
-                      typeVendors.map((vendor) =>
-                        renderVendorRow(
-                          vendor,
-                          (vendor.vendor_account || []).filter(
-                            (account) =>
-                              account.service?.toLowerCase() ===
-                              type.toLowerCase(),
-                          ).length,
-                        ),
-                      )
-                    )}
-                  </tbody>
-                </table>
+                {typeVendors.length === 0 ? (
+                  <p className="mt-2 rounded-lg bg-white px-4 py-3 text-sm text-gray-600">
+                    No vendors for this service type.
+                  </p>
+                ) : (
+                  <div className="table-card table-card-compact mt-2">
+                    <table className="w-full rounded-lg bg-white text-left text-sm @table-compact:table-fixed">
+                      {tableHead}
+                      <tbody>
+                        {typeVendors.map((vendor) =>
+                          renderVendorRow(
+                            vendor,
+                            (vendor.vendor_account || []).filter(
+                              (account) =>
+                                account.service?.toLowerCase() ===
+                                type.toLowerCase(),
+                            ).length,
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             ))}
 
@@ -609,14 +676,16 @@ function VendorsPage() {
                   </span>
                 </div>
 
-                <table className="mt-2 w-full rounded-lg bg-white text-left text-sm md:table-fixed">
-                  {tableHead}
-                  <tbody>
-                    {unassignedVendors.map((vendor) =>
-                      renderVendorRow(vendor, 0),
-                    )}
-                  </tbody>
-                </table>
+                <div className="table-card table-card-compact mt-2">
+                  <table className="w-full rounded-lg bg-white text-left text-sm @table-compact:table-fixed">
+                    {tableHead}
+                    <tbody>
+                      {unassignedVendors.map((vendor) =>
+                        renderVendorRow(vendor, 0),
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </>

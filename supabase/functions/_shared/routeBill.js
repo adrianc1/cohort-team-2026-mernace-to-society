@@ -41,17 +41,23 @@ export function routeBill(extracted, match) {
 	}
 
 	// Utility bills often add a previous balance, credits or taxes, so a mismatch
-	// means "a person should look", not "reject"
+	// means "a person should look", not "reject". Compare line items to subtotal
+	// (before tax), not to amount (final total after tax).
 	const lineItems = Array.isArray(bill.line_items) ? bill.line_items : [];
-	if (lineItems.length > 0 && isNumber(bill.amount)) {
-		const total = lineItems.reduce(
-			(sum, item) => sum + (isNumber(item?.amount) ? item.amount : 0),
-			0,
-		);
-		if (Math.abs(toCents(total) - toCents(bill.amount)) > 1) {
-			reasons.push(
-				`Line items add up to ${money(total)}, but the total due is ${money(bill.amount)}`,
+	if (lineItems.length > 0) {
+		// Use subtotal for line item comparison if available, since that's the charges
+		// before taxes/fees. Skip the check if subtotal wasn't extracted.
+		const comparisonAmount = isNumber(bill.subtotal) ? bill.subtotal : null;
+		if (comparisonAmount !== null) {
+			const total = lineItems.reduce(
+				(sum, item) => sum + (isNumber(item?.amount) ? item.amount : 0),
+				0,
 			);
+			if (Math.abs(toCents(total) - toCents(comparisonAmount)) > 1) {
+				reasons.push(
+					`Line items add up to ${money(total)}, but subtotal is ${money(comparisonAmount)}`,
+				);
+			}
 		}
 	}
 
