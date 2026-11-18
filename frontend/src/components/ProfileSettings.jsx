@@ -151,7 +151,9 @@ function ProfileSettings({
                       />
 
                       {id === "confirm_new_password" && (
-                        <PasswordHint password={passwords.new_password} />
+                        <div className="mt-4">
+                          <PasswordHint password={passwords.new_password} />
+                        </div>
                       )}
                     </div>
                   ),
