@@ -392,14 +392,35 @@ function VendorsPage() {
     }
   }
 
-  const vendorsByService = serviceTypes.map((type) => ({
-    type,
-    vendors: filteredVendors.filter((vendor) =>
-      (vendor.vendor_account || []).some(
-        (account) => account.service?.toLowerCase() === type.toLowerCase(),
+  // The fixed list first, then any other service an account uses (e.g. "Security"),
+  // so a vendor never disappears just because its service isn't in the list
+  const extraServiceTypes = [
+    ...new Map(
+      filteredVendors
+        .flatMap((vendor) => vendor.vendor_account || [])
+        .map((account) => account.service?.trim())
+        .filter(
+          (service) =>
+            service &&
+            !serviceTypes.some(
+              (type) => type.toLowerCase() === service.toLowerCase(),
+            ),
+        )
+        .map((service) => [service.toLowerCase(), service]),
+    ).values(),
+  ].sort();
+
+  const vendorsByService = [...serviceTypes, ...extraServiceTypes].map(
+    (type) => ({
+      type,
+      vendors: filteredVendors.filter((vendor) =>
+        (vendor.vendor_account || []).some(
+          (account) =>
+            account.service?.trim().toLowerCase() === type.toLowerCase(),
+        ),
       ),
-    ),
-  }));
+    }),
+  );
 
   const vendorAccountCount = vendors.reduce(
     (total, vendor) => total + (vendor.vendor_account || []).length,
@@ -654,7 +675,7 @@ function VendorsPage() {
                             vendor,
                             (vendor.vendor_account || []).filter(
                               (account) =>
-                                account.service?.toLowerCase() ===
+                                account.service?.trim().toLowerCase() ===
                                 type.toLowerCase(),
                             ).length,
                           ),
