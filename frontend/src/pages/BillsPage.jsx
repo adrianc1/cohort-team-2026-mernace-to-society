@@ -168,13 +168,10 @@ function BillsPage() {
             </button>
             {open && (
               <div className="absolute left-0 z-10 mt-2 w-48 rounded-lg border border-secondary bg-white py-2 shadow-lg sm:left-auto sm:right-0">
-                {(canEditRecords
-                  ? [
-                      { label: "Enter Manually", path: "/bills/manual" },
-                      { label: "Upload Bill", path: "/bills/upload" },
-                    ]
-                  : [{ label: "Upload Bill", path: "/bills/upload" }]
-                ).map(({ label, path }) => (
+                {[
+                  { label: "Enter Manually", path: "/bills/manual" },
+                  { label: "Upload Bill", path: "/bills/upload" },
+                ].map(({ label, path }) => (
                   <button
                     key={label}
                     type="button"
