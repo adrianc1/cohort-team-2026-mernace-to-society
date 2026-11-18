@@ -14,6 +14,7 @@ const cleanBill = {
 	account_number: '2000 456 700',
 	invoice_number: ' INV-1001 ',
 	amount: 125.5,
+	subtotal: 125.5,
 	issue_date: '2026-11-01',
 	due_date: '2026-11-20',
 	line_items: [
@@ -74,15 +75,16 @@ Deno.test('a zero or missing amount is never sent to approval', () => {
 	assertEquals(missing.fields.amount, null);
 });
 
-Deno.test('line items that do not add up go to needs_review, not rejected', () => {
-	const route = routeBill({ ...cleanBill, amount: 175.5 }, one);
+Deno.test('line items that do not add up to subtotal go to needs_review, not rejected', () => {
+	const route = routeBill({ ...cleanBill, subtotal: 175.5 }, one);
 	assertEquals(route.status, 'needs_review');
-	assertStringIncludes(route.review_reason, 'Line items add up to $125.50, but the total due is $175.50');
+	assertStringIncludes(route.review_reason, 'Line items add up to $125.50, but subtotal is $175.50');
 });
 
 Deno.test('a cent of rounding in line items is fine', () => {
 	const route = routeBill({
 		...cleanBill,
+		subtotal: 0.3,
 		amount: 0.3,
 		line_items: [
 			{ description: 'a', amount: 0.1 },
@@ -112,7 +114,7 @@ Deno.test('unreadable values are saved as null, not guessed', () => {
 });
 
 Deno.test('several problems are all listed', () => {
-	const route = routeBill({ ...cleanBill, amount: 175.5 }, { kind: 'none', account: null });
+	const route = routeBill({ ...cleanBill, subtotal: 175.5 }, { kind: 'none', account: null });
 	assertStringIncludes(route.review_reason, 'No vendor account matches');
 	assertStringIncludes(route.review_reason, 'Line items add up');
 });

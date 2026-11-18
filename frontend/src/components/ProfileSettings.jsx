@@ -122,18 +122,14 @@ function ProfileSettings({
         </button>
         <div
           id="password-form"
-          className={`grid transition-all duration-300 ease-in-out ${
-            showPasswordForm
-              ? "grid-rows-[1fr] opacity-100"
-              : "grid-rows-[0fr] opacity-0"
-          }`}
+          className={showPasswordForm ? "grid" : "hidden"}
           inert={!showPasswordForm}
         >
           <div className="overflow-hidden">
             <form onSubmit={handleUpdatePassword} className="mt-4">
               <div className="grid grid-cols-1 gap-4 md:w-1/2">
                 {passwordFields.map(
-                  ({ label, id, autoComplete, placeholder, minLength, showHint }) => (
+                  ({ label, id, autoComplete, placeholder }) => (
                     <div key={id}>
                       <label htmlFor={id} className="label">
                         {label}
@@ -143,7 +139,6 @@ function ProfileSettings({
                         type="password"
                         autoComplete={autoComplete}
                         placeholder={placeholder}
-                        minLength={minLength}
                         value={passwords[id]}
                         onChange={(e) =>
                           setPasswords({
@@ -154,7 +149,12 @@ function ProfileSettings({
                         required
                         className={inputClass}
                       />
-                      {showHint && <PasswordHint password={passwords[id]} />}
+
+                      {id === "confirm_new_password" && (
+                        <div className="mt-4">
+                          <PasswordHint password={passwords.new_password} />
+                        </div>
+                      )}
                     </div>
                   ),
                 )}
@@ -183,12 +183,14 @@ function ProfileSettings({
 
             <Link
               to="/forgot-password"
-              state={{ email: authUser?.email ?? profile?.email ?? "", from: "/settings" }}
-              className="mt-2 inline-block text-sm font-semibold text-primary hover:underline"
+              state={{
+                email: authUser?.email ?? profile?.email ?? "",
+                from: "/settings",
+              }}
+              className="link mt-2 inline-block text-sm"
             >
               Forgot password?
             </Link>
-
           </div>
         </div>
       </section>
