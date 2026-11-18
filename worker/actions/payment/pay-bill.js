@@ -1,20 +1,19 @@
 // ==========================================
-// ACTIONS: EXECUTE BILL PAYMENT WITH ERROR DETECTION
+// ACTIONS: EXECUTE BILL PAYMENT & GRAB RECEIPT
 // ==========================================
 
 import { z } from "zod";
+import fetch from "node-fetch";
 
-export async function executeBillPayment(page, stagehand, bill) {
+export async function executeBillPayment(page, stagehand, bill, supabase) {
   console.log("\n=================================");
-  console.log("EXECUTING BILL PAYMENT & CHECKING FAILURES");
+  console.log("EXECUTING BILL PAYMENT & CAPTURING RECEIPT");
   console.log("=================================\n");
 
   console.log(`Target Amount: $${bill.amount}`);
   console.log(`Target Invoice: ${bill.invoice_number || "N/A"}`);
 
   const paymentMethods = bill.paymentMethods || [];
-  console.log(`Found ${paymentMethods.length} saved payment method(s) in Supabase.`);
-
   const selectedMethod = paymentMethods[0];
 
   if (!selectedMethod) {
@@ -24,8 +23,8 @@ export async function executeBillPayment(page, stagehand, bill) {
   const rawNumber = selectedMethod.card_number || selectedMethod.account_number || "";
   const lastFour = rawNumber.slice(-4) || "0000";
   const methodType = selectedMethod.type || "card";
-
   const methodDescription = `${methodType} ending in ${lastFour}`;
+  
   console.log(`\nSelected Payment Method from DB: ${methodDescription}`);
 
   // 1. Select the payment method on the portal
@@ -40,13 +39,9 @@ export async function executeBillPayment(page, stagehand, bill) {
 
   console.log("Payment method selected successfully.");
 
-  // 2. Final submission and error checking
-  console.log("\n⚠️ SAFETY CHECK: Ready to submit payment.");
+  // 2. Final submission and live execution
+  console.log("\n🚀 Submitting live payment on vendor portal...");
   
-  /* 
-  // UNCOMMENT BELOW FOR LIVE PRODUCTION EXECUTION:
-  
-  console.log("Submitting payment on vendor portal...");
   const submitAction = await stagehand.act(
     `Click the final "Submit Payment", "Pay Now", or "Authorize Payment" button to complete the transaction for $${bill.amount}.`
   );
@@ -55,17 +50,18 @@ export async function executeBillPayment(page, stagehand, bill) {
     throw new Error("Failed to click final payment submission button.");
   }
 
-  // Wait briefly for the payment gateway response
-  await new Promise((resolve) => setTimeout(resolve, 4000));
+  // Wait briefly for the payment gateway response and confirmation screen to render
+  await new Promise((resolve) => setTimeout(resolve, 5000));
 
-  // Extract page state to check for success or card decline errors
+  // 3. Extract page state to check success and extract confirmation + receipt link
   const { data: paymentResult } = await stagehand.extract(
-    "Analyze the payment result on the screen. Determine if the payment was successful, or if there was an error such as a card decline, insufficient funds, or invalid expiration date.",
+    "Analyze the payment result on the screen. Determine if the payment was successful, extract the confirmation number, and look for a PDF receipt download link or button URL if available.",
     z.object({
       isSuccessful: z.boolean(),
       errorCode: z.string().optional(),
       errorMessage: z.string().optional(),
       confirmationNumber: z.string().optional(),
+      receiptUrl: z.string().optional(),
       explanation: z.string(),
     })
   );
@@ -77,21 +73,44 @@ export async function executeBillPayment(page, stagehand, bill) {
     throw new Error(`Payment failed on vendor portal: ${failureReason}`);
   }
 
-  console.log(`Payment successful! Confirmation: ${paymentResult.confirmationNumber || "N/A"}`);
-  
+  const confirmationNumber = paymentResult.confirmationNumber || `CONF-${Date.now()}`;
+  console.log(`Payment successful! Confirmation: ${confirmationNumber}`);
+
+  let receiptStoragePath = null;
+
+  // 4. Download and store the PDF receipt if a link was found
+  console.log("STAGEHAND RECEIPT URL:", paymentResult.receiptUrl);
+  if (paymentResult.receiptUrl) {
+    try {
+      console.log(`Downloading receipt PDF from portal...`);
+      const pdfResponse = await fetch(paymentResult.receiptUrl);
+      
+      if (pdfResponse.ok) {
+        const pdfBuffer = await pdfResponse.arrayBuffer();
+        const fileName = `receipt-${bill.id}-${Date.now()}.pdf`;
+
+        // Upload directly to your private Supabase 'receipts' bucket
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("receipts")
+          .upload(fileName, Buffer.from(pdfBuffer), { contentType: "application/pdf" });
+
+        if (!uploadError && uploadData) {
+          receiptStoragePath = uploadData.path;
+          console.log(`Receipt PDF securely stored at path: ${receiptStoragePath}`);
+        } else {
+          console.error(`Warning: Failed to upload PDF to storage:`, uploadError?.message);
+        }
+      }
+    } catch (pdfErr) {
+      console.error(`Non-fatal: Could not download receipt PDF:`, pdfErr.message);
+    }
+  }
+
   return {
     success: true,
     methodUsed: methodDescription,
     amountPaid: bill.amount,
-    confirmationNumber: paymentResult.confirmationNumber,
-  };
-  */
-
-  console.log("Payment simulation complete (live submission commented out for testing).");
-
-  return {
-    success: true,
-    methodUsed: methodDescription,
-    amountPaid: bill.amount,
+    confirmationNumber: confirmationNumber,
+    receiptUrl: receiptStoragePath, // Passed back to save into your payment table!
   };
 }

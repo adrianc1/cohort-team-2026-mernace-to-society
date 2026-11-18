@@ -18,13 +18,12 @@ export default {
       return Response.json({ error: 'billId is required' }, { status: 400 });
     }
 
-    // Get the authenticated user ID for auditing
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Fetch the bill record
+    // 1. Fetch bill record
     const { data: bill, error: billError } = await supabase
       .from('bill')
-      .select('id, amount, status')
+      .select('id, amount, status, bill_url')
       .eq('id', billId)
       .single();
 
@@ -36,9 +35,44 @@ export default {
       return Response.json({ error: 'Bill must be approved before payment.' }, { status: 400 });
     }
 
-    // 2. Generate confirmation number and insert payment record (including failure_reason)
-    const confirmationNumber = `CONF-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    // 2. Stagehand Automation & Receipt PDF Extraction Hook
+    let confirmationNumber = `CONF-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+    let receiptStoragePath = null;
 
+    /* 
+      --- Stagehand Worker Implementation Example ---
+      const stagehand = new Stagehand({ env: "LOCAL" });
+      await stagehand.init();
+      await stagehand.page.goto(bill.bill_url);
+      
+      // Execute payment on vendor portal
+      await stagehand.page.act("Complete the payment on the portal");
+      
+      // Extract confirmation number text
+      confirmationNumber = await stagehand.page.extract("Extract the payment confirmation number");
+      
+      // Locate and click the PDF receipt download link
+      const receiptDownloadLink = await stagehand.page.extract("Extract the direct PDF download link or URL for the receipt");
+      
+      if (receiptDownloadLink) {
+        const pdfResponse = await fetch(receiptDownloadLink);
+        const pdfBlob = await pdfResponse.blob();
+        const fileName = `receipt-${bill.id}-${Date.now()}.pdf`;
+        
+        // Upload to your private 'receipts' bucket
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('receipts')
+          .upload(fileName, pdfBlob, { contentType: 'application/pdf' });
+          
+        if (!uploadError && uploadData) {
+          // Store the relative storage path for secure signed URL generation
+          receiptStoragePath = uploadData.path; 
+        }
+      }
+      await stagehand.close();
+    */
+
+    // 3. Insert payment record with receipt storage path
     const { error: paymentError } = await supabase
       .from('payment')
       .insert({
@@ -47,7 +81,8 @@ export default {
         status: 'success',
         method: ['ach'],
         confirmation_number: confirmationNumber,
-        failure_reason: '', // Satisfies the not-null constraint for successful payments
+        failure_reason: '',
+        receipt_url: receiptStoragePath, // Stores the private bucket file path
         attempted_at: new Date().toISOString(),
         attempted_by: user?.id,
         updated_at: new Date().toISOString(),
@@ -58,7 +93,7 @@ export default {
       return Response.json({ error: paymentError.message }, { status: 500 });
     }
 
-    // 3. Update the bill status to 'paid'
+    // 4. Update bill status to 'paid'
     const { error: updateError } = await supabase
       .from('bill')
       .update({
@@ -72,6 +107,6 @@ export default {
       return Response.json({ error: updateError.message }, { status: 500 });
     }
 
-    return Response.json({ success: true, confirmationNumber }, { status: 200 });
+    return Response.json({ success: true, confirmationNumber, receiptStoragePath }, { status: 200 });
   }),
 };

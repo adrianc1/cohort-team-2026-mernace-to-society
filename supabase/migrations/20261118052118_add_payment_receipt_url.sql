@@ -1,0 +1,1 @@
+ALTER TABLE "public"."payment" ADD COLUMN IF NOT EXISTS "receipt_url" text;

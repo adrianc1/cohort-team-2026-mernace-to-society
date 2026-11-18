@@ -55,7 +55,7 @@ async function runAutomation(billId) {
 
     console.log("Trusted domains:", [...trustedDomains]);
 
-    // 3. Initialize Browser & Stagehand
+    // 3. Initialize Browser & Stagehand (Runs in headed mode locally so you can watch!)
     const browserSession = await initializeBrowser();
     browser = browserSession.browser;
     stagehand = browserSession.stagehand;
@@ -112,12 +112,40 @@ async function runAutomation(billId) {
     // 8. Extract & Verify Bill Details from Page DOM
     await verifyBillDetails(page, stagehand, bill);
 
-    // 9. If bill is approved, proceed to automated payment execution and receipt logging
+    // 9. If bill is approved, proceed to automated payment execution and receipt storage
     if (bill.status === "approved") {
-      console.log("\nBill status is 'approved'. Proceeding to payment execution...");
-      const paymentResult = await executeBillPayment(page, stagehand, bill);
+      console.log("\nBill status is 'approved'. Proceeding to live payment execution...");
+      const paymentResult = await executeBillPayment(page, stagehand, bill, supabase);
 
       if (paymentResult.success) {
+        let receiptStoragePath = null;
+
+        // Download and store the PDF receipt in Supabase storage if Stagehand found a download link
+        if (paymentResult.receiptUrl) {
+          try {
+            console.log("Downloading receipt PDF from vendor portal...");
+            const pdfResponse = await fetch(paymentResult.receiptUrl);
+            
+            if (pdfResponse.ok) {
+              const pdfBuffer = await pdfResponse.arrayBuffer();
+              const fileName = `receipt-${bill.id}-${Date.now()}.pdf`;
+
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from("receipts")
+                .upload(fileName, Buffer.from(pdfBuffer), { contentType: "application/pdf" });
+
+              if (!uploadError && uploadData) {
+                receiptStoragePath = uploadData.path;
+                console.log("Receipt successfully uploaded to bucket path:", receiptStoragePath);
+              } else {
+                console.error("Supabase storage upload failed:", uploadError?.message);
+              }
+            }
+          } catch (pdfErr) {
+            console.error("Non-fatal: Failed to download/upload receipt PDF:", pdfErr.message);
+          }
+        }
+
         // Update bill status to 'paid' in Supabase
         const { error: billUpdateError } = await supabase
           .from("bill")
@@ -131,21 +159,23 @@ async function runAutomation(billId) {
           console.error("Failed to update bill status in Supabase:", billUpdateError.message);
         }
 
-        // Insert payment receipt/audit record into the payment table
+        // Insert payment record into the payment table with the secure storage path
         const { error: paymentInsertError } = await supabase
           .from("payment")
           .insert({
             bill_id: bill.id,
             amount: bill.amount,
             status: "success",
-            confirmation_number: paymentResult.confirmationNumber || "SIMULATED-CONF-12345",
+            method: [paymentResult.methodUsed || "card"],
+            confirmation_number: paymentResult.confirmationNumber || `CONF-${Date.now()}`,
+            receipt_url: receiptStoragePath, // Stores bucket path for secure signed URL generation
             attempted_at: new Date().toISOString(),
           });
 
         if (paymentInsertError) {
-          console.error("Failed to save payment receipt record:", paymentInsertError.message);
+          console.error("Failed to save payment record:", paymentInsertError.message);
         } else {
-          console.log("Payment receipt successfully saved to Supabase!");
+          console.log("Payment record and receipt path successfully saved to Supabase DB!");
         }
 
         await updateAudit({

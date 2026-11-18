@@ -44,6 +44,7 @@ export default {
 		} = await supabase.auth.getUser();
 
 		// Uses the caller's token, so storage policies decide if they may read it
+		console.log("Attempting download from bucket 'invoices' with path:", path);
 		const { data: blob, error: downloadError } = await supabase.storage
 			.from('invoices')
 			.download(path);
