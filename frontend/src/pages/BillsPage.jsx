@@ -26,7 +26,6 @@ const stackedRowClassName =
 const stackedCellClassName =
   "flex justify-between gap-4 py-1 md:table-cell md:px-4 md:py-3";
 
-// Status filter values; a ?status= in the URL must be one of these
 const statusOptions = [
   "pending",
   "needs_review",
@@ -48,7 +47,6 @@ function BillsPage() {
 
   // Filter & Sort States
   const [filterProperty, setFilterProperty] = useState("all");
-  // Starts from ?status= so dashboard cards can open a filtered list
   const [filterStatus, setFilterStatus] = useState(() => {
     const status = searchParams.get("status");
     return statusOptions.includes(status) ? status : "all";
@@ -59,10 +57,8 @@ function BillsPage() {
   const { profile } = useUserProfile();
   const canEditRecords = canManageRecords(profile?.role);
 
-  // Wraps the Add Bill button and its menu, so we can tell inside clicks from outside ones
   const dropdownRef = useRef(null);
 
-  // Close the Add Bill menu when clicking outside it or pressing Escape
   useEffect(() => {
     if (!open) return;
 
@@ -85,7 +81,6 @@ function BillsPage() {
     };
   }, [open]);
 
-  // Load bills and properties for filters
   useEffect(() => {
     async function loadData() {
       setLoading(true);
@@ -114,21 +109,17 @@ function BillsPage() {
     loadData();
   }, [reloadCount]);
 
-  // Filter and Sort Logic
   const filteredAndSortedBills = useMemo(() => {
     let result = [...bills];
 
-    // Filter by Property
     if (filterProperty !== "all") {
       result = result.filter((bill) => bill.property_id === filterProperty);
     }
 
-    // Filter by Status
     if (filterStatus !== "all") {
       result = result.filter((bill) => bill.status === filterStatus);
     }
 
-    // Sort
     result.sort((a, b) => {
       switch (sortBy) {
         case "due_date_asc":
@@ -204,7 +195,6 @@ function BillsPage() {
       {/* Filter & Sort Controls Bar */}
       <section className="card mt-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
-          {/* Property Filter */}
           <div className="w-full sm:w-52">
             <label htmlFor="filter-property" className="label">
               Property
@@ -224,7 +214,6 @@ function BillsPage() {
             </select>
           </div>
 
-          {/* Status Filter */}
           <div className="w-full sm:w-52">
             <label htmlFor="filter-status" className="label">
               Status
@@ -246,7 +235,6 @@ function BillsPage() {
           </div>
         </div>
 
-        {/* Sort Controls */}
         <div className="w-full sm:w-64">
           <label htmlFor="sort-by" className="label">
             Sort By
@@ -381,8 +369,6 @@ function BillsPage() {
                           Edit
                         </button>
                       )}
-                      {/* Unfinished bills open their page, which has the
-                          add property / vendor account helpers */}
                       {canEditRecords &&
                         ["needs_review", "extraction_failed"].includes(
                           bill.status,
@@ -398,10 +384,10 @@ function BillsPage() {
                       {canEditRecords && bill.status === "approved" && (
                         <button
                           type="button"
-                          // TODO: open the payment flow once payments are built
-                          className="btn-primary w-full px-4 py-2 text-xs md:w-auto"
+                          onClick={() => navigate(`/bills/${bill.id}`)}
+                          className="btn-primary w-full px-4 py-2 text-xs md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
                         >
-                          Pay
+                          Review & Pay
                         </button>
                       )}
                     </div>

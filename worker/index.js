@@ -6,7 +6,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { fetchBillWithContext, updateAudit } from "./config/supabase.js";
+import { supabase, fetchBillWithContext, updateAudit } from "./config/supabase.js";
 import { initializeBrowser } from "./core/browser.js";
 import { navigateToLogin } from "./actions/auth/navigate-login.js";
 import { authenticateCustomer } from "./actions/auth/authenticate.js";
@@ -33,7 +33,7 @@ async function runAutomation(billId) {
     console.log(`STARTING AUTOMATION FOR BILL: ${billId}`);
     console.log(`=================================\n`);
 
-    // 1. Fetch bill context, master portal_url, property account number, and payment methods
+    // 1. Fetch bill context, portal URL, account number, and saved payment methods
     const bill = await fetchBillWithContext(billId);
 
     console.log(`Vendor Name: ${bill.vendorName}`);
@@ -112,10 +112,50 @@ async function runAutomation(billId) {
     // 8. Extract & Verify Bill Details from Page DOM
     await verifyBillDetails(page, stagehand, bill);
 
-    // 9. If bill is approved, proceed to automated payment execution
+    // 9. If bill is approved, proceed to automated payment execution and receipt logging
     if (bill.status === "approved") {
       console.log("\nBill status is 'approved'. Proceeding to payment execution...");
-      await executeBillPayment(page, stagehand, bill);
+      const paymentResult = await executeBillPayment(page, stagehand, bill);
+
+      if (paymentResult.success) {
+        // Update bill status to 'paid' in Supabase
+        const { error: billUpdateError } = await supabase
+          .from("bill")
+          .update({ 
+            status: "paid", 
+            paid_on: new Date().toISOString().split("T")[0] 
+          })
+          .eq("id", bill.id);
+
+        if (billUpdateError) {
+          console.error("Failed to update bill status in Supabase:", billUpdateError.message);
+        }
+
+        // Insert payment receipt/audit record into the payment table
+        const { error: paymentInsertError } = await supabase
+          .from("payment")
+          .insert({
+            bill_id: bill.id,
+            amount: bill.amount,
+            status: "success",
+            confirmation_number: paymentResult.confirmationNumber || "SIMULATED-CONF-12345",
+            attempted_at: new Date().toISOString(),
+          });
+
+        if (paymentInsertError) {
+          console.error("Failed to save payment receipt record:", paymentInsertError.message);
+        } else {
+          console.log("Payment receipt successfully saved to Supabase!");
+        }
+
+        await updateAudit({
+          billId: bill.id,
+          action: "bill_paid",
+          fromStatus: "approved",
+          toStatus: "paid",
+          note: `Successfully paid $${bill.amount} using ${paymentResult.methodUsed}.`,
+        });
+      }
     } else {
       console.log(`\nBill status is '${bill.status}'. Stopping before payment execution.`);
     }

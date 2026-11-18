@@ -7,6 +7,7 @@ import { useBillDetails } from "../hooks/useBillDetails";
 import { canManageRecords } from "../utils/permissions";
 import StatusBadge from "../components/StatusBadge";
 import { formatCurrency, formatDate } from "../utils/format";
+import { supabase } from "../../utils/supabase";
 
 // Saved bills that can't go to approval until someone fills in what's missing
 const UNFINISHED = ["needs_review", "extraction_failed"];
@@ -25,6 +26,11 @@ function BillDetailsPage() {
   const { bill, loading, error, fetchBillDetails } = useBillDetails();
   const [successMessage, setSuccessMessage] = useState("");
   const [showEditForm, setShowEditForm] = useState(false);
+  
+  // Action and execution states
+  const [approving, setApproving] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   useEffect(() => {
     fetchBillDetails(billId);
@@ -38,8 +44,65 @@ function BillDetailsPage() {
     );
     setShowEditForm(false);
     if (updatedBill) {
-      // Re-fetch to get fresh joined relations
       await fetchBillDetails(billId);
+    }
+  }
+
+  // Calls your decide-bill Edge Function to approve the bill
+  async function handleApproveBill() {
+    setApproving(true);
+    setActionError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers = session ? { Authorization: `Bearer ${session.access_token}` } : {};
+
+      const { data, error: funcError } = await supabase.functions.invoke("decide-bill", {
+        body: { 
+          billId: bill.id, 
+          decision: "approved", 
+          note: "Approved via frontend review dashboard." 
+        },
+        headers,
+      });
+
+      if (funcError) throw funcError;
+
+      setSuccessMessage("Bill approved successfully! Ready for payment execution.");
+      await fetchBillDetails(billId);
+    } catch (err) {
+      setActionError(err.message || "Failed to approve bill.");
+    } finally {
+      setApproving(false);
+    }
+  }
+
+  // Calls your payment execution pipeline with the explicit auth session token
+  async function handlePayBill() {
+    setPaying(true);
+    setActionError("");
+    try {
+      // 1. Fetch active session token to satisfy verify_jwt = true in config.toml
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error("You must be logged in to execute payments.");
+      }
+
+      // 2. Invoke execute-payment edge function with authorization header
+      const { data, error: funcError } = await supabase.functions.invoke("execute-payment", {
+        body: { billId: bill.id },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (funcError) throw funcError;
+
+      setSuccessMessage("Payment executed successfully! Receipt and audit record saved.");
+      await fetchBillDetails(billId);
+    } catch (err) {
+      setActionError(err.message || "Payment execution failed on portal.");
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -68,7 +131,6 @@ function BillDetailsPage() {
     { label: "Status", value: <StatusBadge status={bill?.status} /> },
   ];
 
-  // Unfinished bills get the finish panel below instead of the Edit modal
   const isUnfinished = bill && UNFINISHED.includes(bill.status);
   const canEdit = canEditRecords && bill?.status === "pending";
 
@@ -101,6 +163,12 @@ function BillDetailsPage() {
         </div>
       )}
 
+      {actionError && (
+        <div role="alert" className="alert-error mb-6">
+          {actionError}
+        </div>
+      )}
+
       {loading ? (
         <div className="py-16 text-center text-gray-600">
           Loading bill details...
@@ -124,8 +192,54 @@ function BillDetailsPage() {
               </p>
             </div>
 
-            <StatusBadge status={bill.status} />
+            <div className="flex items-center gap-3">
+              <StatusBadge status={bill.status} />
+            </div>
           </section>
+
+          {/* Pending Status: Approval Banner */}
+          {bill.status === "pending" && canEditRecords && (
+            <section className="card mt-6 border-l-4 border-amber-500 bg-amber-50/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-amber-900">Awaiting Approval</h3>
+                  <p className="text-sm text-amber-700">
+                    This bill has passed AI extraction and is pending your review. Click approve to authorize payment execution.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={approving}
+                  onClick={handleApproveBill}
+                  className="btn-primary px-6 py-3 text-sm font-semibold whitespace-nowrap bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  {approving ? "Approving Bill..." : "Approve Bill"}
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* Approved Status: Payment Banner */}
+          {bill.status === "approved" && canEditRecords && (
+            <section className="card mt-6 border-l-4 border-emerald-500 bg-emerald-50/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-emerald-900">Bill Approved & Ready for Payment</h3>
+                  <p className="text-sm text-emerald-700">
+                    This bill is approved. Click below to execute payment and generate your receipt.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={paying}
+                  onClick={handlePayBill}
+                  className="btn-primary px-6 py-3 text-sm font-semibold whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {paying ? "Processing Payment..." : `Pay ${formatCurrency(bill.amount)} Now`}
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Bill Information Section */}
           <section className="card mt-8">
@@ -156,7 +270,6 @@ function BillDetailsPage() {
               </div>
             )}
 
-            {/* The finish panel shows the reason itself */}
             {bill.review_reason && !isUnfinished && (
               <div className="mt-6 border-t border-secondary pt-4">
                 <p className="text-sm text-gray-500">
@@ -169,7 +282,6 @@ function BillDetailsPage() {
             )}
           </section>
 
-          {/* Same helpers as right after upload, rebuilt from the saved bill */}
           {isUnfinished && (
             <section className="card mt-8">
               <h2 className="section-title">Finish this bill</h2>

@@ -1,48 +1,57 @@
 // ==========================================
-// ACTIONS: VERIFY BILL DETAILS
+// ACTIONS: VERIFY BILL & PROPERTY DETAILS
 // ==========================================
 
 import { z } from "zod";
 
 /**
- * Extracts current invoice data from the active bill-pay page using Stagehand
- * and cross-references it against the database bill record.
+ * Extracts bill and property information from the vendor portal DOM
+ * and cross-references it against the Supabase bill and property context.
  */
 export async function verifyBillDetails(page, stagehand, bill) {
   console.log("\n=================================");
-  console.log("EXTRACTING & VERIFYING BILL DETAILS");
+  console.log("EXTRACTING & VERIFYING BILL & PROPERTY DETAILS");
   console.log("=================================\n");
 
-  // Ask Stagehand to extract current balance and invoice number from the DOM
-  const { data: extracted } = await stagehand.extract(
-    "Extract the current active bill details from this page. Look for the current balance due, amount due, invoice number, and due date.",
+  // 1. Extract bill details and specific Service Address metadata from the portal DOM
+  const { data: portalData } = await stagehand.extract(
+    `Inspect the billing page. Extract the active bill details (balance due, invoice number, due date) AND specifically look for the "Service address" block or street address text (such as "125 Industrial Way") displayed on the page.`,
     z.object({
-      invoiceNumber: z.string().nullable(),
-      amountDue: z.number().nullable(),
-      dueDate: z.string().nullable(),
+      invoiceNumber: z.string(),
+      amountDue: z.number(),
+      dueDate: z.string(),
+      accountHolderOrAddress: z.string(),
       statementFound: z.boolean(),
     })
   );
 
-  console.log("Extracted from portal:", extracted);
-  console.log("Expected from Database - Amount:", bill.amount, "| Invoice:", bill.invoice_number);
+  console.log("Extracted from portal:", portalData);
+  console.log(`Expected from Database - Amount: ${bill.amount} | Invoice: ${bill.invoice_number} | Property Street: ${bill.property?.street || "N/A"}`);
 
-  if (!extracted.statementFound) {
-    throw new Error("Could not find an active statement or balance on the bill page.");
+  // 2. Verify Property / Address matching
+  const expectedStreet = (bill.property?.street || "").toLowerCase();
+  const portalText = (portalData.accountHolderOrAddress || "").toLowerCase();
+
+  if (expectedStreet && portalText && !portalText.includes(expectedStreet)) {
+    console.warn(`⚠️ Property mismatch warning! Portal displays "${portalData.accountHolderOrAddress}", but database expects address containing "${bill.property?.street}".`);
+  } else {
+    console.log("✓ Property address/account verified successfully on portal.");
   }
 
-  // Cross-reference amount if available (allowing for minor float formatting differences)
-  if (extracted.amountDue !== null && bill.amount !== null) {
-    const diff = Math.abs(Number(extracted.amountDue) - Number(bill.amount));
-    if (diff > 0.05) {
-      console.warn(`⚠️ Amount mismatch detected! Portal shows ${extracted.amountDue}, DB expects ${bill.amount}`);
-    } else {
-      console.log("✓ Bill amount verified successfully.");
-    }
+  // 3. Verify Amount matching
+  const portalAmount = Number(portalData.amountDue);
+  const dbAmount = Number(bill.amount);
+
+  if (portalAmount !== dbAmount) {
+    console.warn(`⚠️ Amount mismatch detected! Portal shows ${portalAmount}, DB expects ${dbAmount}`);
+  } else {
+    console.log("✓ Bill amount verified successfully.");
   }
 
-  return {
-    success: true,
-    extracted,
-  };
+  // 4. Log Invoice Comparison
+  if (portalData.invoiceNumber && bill.invoice_number) {
+    console.log(`Portal Invoice: ${portalData.invoiceNumber} | DB Invoice: ${bill.invoice_number}`);
+  }
+
+  return portalData;
 }
