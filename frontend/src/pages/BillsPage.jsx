@@ -85,7 +85,7 @@ function BillsPage() {
         supabase
           .from("bill")
           .select(
-            "id, invoice_number, issue_date, due_date, amount, status, extracted_vendor_name, review_reason, property_id, vendor_account_id, property(name), vendor_account(service, vendor(name))",
+            "id, invoice_number, issue_date, due_date, amount, status, extracted_vendor_name, review_reason, property_id, vendor_account_id, bill_url, property(name), vendor_account(service, vendor(name))",
           ),
         supabase.from("property").select("id, name").order("name"),
       ]);

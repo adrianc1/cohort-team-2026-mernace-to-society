@@ -32,6 +32,7 @@ const initialFormData = {
   dueDate: "",
   comments: "",
   approver: "",
+  billUrl: "",
 };
 
 const inputClassName = "input";
@@ -46,6 +47,7 @@ function billToFormData(bill) {
     amount: bill.amount == null ? "" : String(bill.amount),
     invoiceDate: bill.issue_date ?? "",
     dueDate: bill.due_date ?? "",
+    billUrl: bill.bill_url ?? "",
     comments: bill.review_reason ?? "",
   };
 }
@@ -262,6 +264,7 @@ function BillDetailsForm({
         issue_date: formData.invoiceDate,
         due_date: formData.dueDate,
         vendor_account_id: formData.vendorAccount,
+        bill_url: formData.billUrl.trim() || null,
         review_reason: formData.comments,
       };
 
@@ -434,6 +437,24 @@ function BillDetailsForm({
               required
             />
           </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="billUrl"
+            className="label"
+          >
+            Payment URL <span className="font-normal text-gray-500">(optional)</span>
+          </label>
+          <input
+            id="billUrl"
+            name="billUrl"
+            type="url"
+            placeholder="https://"
+            value={formData.billUrl}
+            onChange={handleChange}
+            className={inputClassName}
+          />
         </div>
 
         <div>

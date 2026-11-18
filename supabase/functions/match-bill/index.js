@@ -51,6 +51,7 @@ export default {
 		const { account } = match;
 		const complete = validateBill({
 			...extracted,
+			bill_url: undefined,
 			vendor_account_id: account.id,
 		}).ok;
 

@@ -33,6 +33,7 @@ export function routeBill(extracted, match) {
 	// so its "required" message would only repeat that.
 	const check = validateBill({
 		...bill,
+		bill_url: undefined,
 		review_reason: null,
 		vendor_account_id: account?.id,
 	});
