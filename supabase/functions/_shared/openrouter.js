@@ -31,7 +31,8 @@ const BILL_SCHEMA = {
 		vendor_name: { type: ['string', 'null'] },
 		account_number: { type: ['string', 'null'] },
 		invoice_number: { type: ['string', 'null'] },
-		amount: { type: ['number', 'null'], description: 'Total amount due' },
+		amount: { type: ['number', 'null'], description: 'Total amount due (final total after taxes and fees)' },
+		subtotal: { type: ['number', 'null'], description: 'Subtotal before taxes and fees' },
 		issue_date: { type: ['string', 'null'], description: 'YYYY-MM-DD' },
 		due_date: { type: ['string', 'null'], description: 'YYYY-MM-DD' },
 		bill_url: {
@@ -88,6 +89,7 @@ const BILL_SCHEMA = {
 		'account_number',
 		'invoice_number',
 		'amount',
+		'subtotal',
 		'issue_date',
 		'due_date',
 		'bill_url',
@@ -106,6 +108,8 @@ const PROMPT =
     'Use null for anything you cannot find. Do not guess. ' +
     'service_address is where the service is delivered, not where to send payment. ' +
     'Dates must be YYYY-MM-DD. Amounts are plain numbers with no currency symbols. ' +
+    'amount = total amount due (after all taxes, fees, and credits). ' +
+    'subtotal = charges before taxes and fees (or null if not shown separately). ' +
     'Extract any payment or account URLs printed on the bill into bill_url and extracted_url.';
 // Sends a file to OpenRouter and returns the extracted bill as an object.
 // Throws if the API call fails or the model's answer isn't valid JSON,
