@@ -56,7 +56,7 @@ function BillDetailsPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const headers = session ? { Authorization: `Bearer ${session.access_token}` } : {};
 
-      const { data, error: funcError } = await supabase.functions.invoke("decide-bill", {
+      const { error: funcError } = await supabase.functions.invoke("decide-bill", {
         body: { 
           billId: bill.id, 
           decision: "approved", 
@@ -88,7 +88,7 @@ function BillDetailsPage() {
       }
 
       // 2. Invoke execute-payment edge function with authorization header
-      const { data, error: funcError } = await supabase.functions.invoke("execute-payment", {
+      const { error: funcError } = await supabase.functions.invoke("execute-payment", {
         body: { billId: bill.id },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
