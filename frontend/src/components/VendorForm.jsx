@@ -261,7 +261,7 @@ function VendorForm({
                   name="property_id"
                   value={formData.property_id}
                   onChange={handleChange}
-                  className={`${inputClassName} select`}
+                  className={`${inputClassName} select max-w-full`}
                   disabled={propertiesLoading}
                   required={accountRequired}
                 >
