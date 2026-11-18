@@ -26,6 +26,7 @@ function BillDetailsPage() {
   const [signedReceiptUrl, setSignedReceiptUrl] = useState(null);
   
   const [approving, setApproving] = useState(false);
+  const [paying, setPaying] = useState(false);
   const [actionError, setActionError] = useState("");
 
   const fetchPaymentDetails = useCallback(async (currentBillId) => {
@@ -133,13 +134,42 @@ function BillDetailsPage() {
         created_at: new Date().toISOString(),
       });
 
-      setSuccessMessage("Bill approved successfully! Ready for terminal payment execution.");
+      setSuccessMessage("Bill approved successfully! Ready for automated payment execution.");
       await fetchBillDetails(billId);
       await fetchAuditTrail(billId);
     } catch (err) {
       setActionError(err.message || "Failed to approve bill.");
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function handlePayBill() {
+    setPaying(true);
+    setActionError("");
+    try {
+      // Calls your local worker bridge server (worker/server.js running on port 3000)
+      const response = await fetch("http://localhost:3000/api/trigger-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billId: bill.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to trigger local worker.");
+
+      setSuccessMessage("Payment automation triggered! Watch your terminal—Stagehand is executing the payment...");
+
+      // Poll and refresh page after 10 seconds to show the new PAID status and receipt PDF
+      setTimeout(async () => {
+        await fetchBillDetails(billId);
+        window.location.reload();
+      }, 10000);
+
+    } catch (err) {
+      setActionError(err.message || "Failed to trigger payment execution.");
+    } finally {
+      setPaying(false);
     }
   }
 
@@ -218,17 +248,22 @@ function BillDetailsPage() {
             </section>
           )}
 
-          {/* Approved Banner */}
-          {bill.status === "approved" && (
+          {/* Approved Banner & Pay Button */}
+          {bill.status === "approved" && canEditRecords && (
             <section className="card mt-6 border-l-4 border-emerald-500 bg-emerald-50/40 p-4">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h3 className="font-bold text-emerald-900">Bill Approved</h3>
-                  <p className="text-sm text-emerald-700">Ready for payment automation. Run your terminal worker:</p>
-                  <code className="text-xs bg-emerald-100 text-emerald-900 px-2 py-1 rounded mt-1 inline-block font-mono">
-                    BILL_ID={bill.id} node worker/index.js
-                  </code>
+                  <p className="text-sm text-emerald-700">Ready for automated payment execution and receipt capture.</p>
                 </div>
+                <button
+                  type="button"
+                  disabled={paying}
+                  onClick={handlePayBill}
+                  className="btn-primary px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                >
+                  {paying ? "Executing Automation..." : `Pay ${formatCurrency(bill.amount)} Now`}
+                </button>
               </div>
             </section>
           )}
