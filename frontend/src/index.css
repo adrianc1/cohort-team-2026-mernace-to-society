@@ -112,7 +112,7 @@
      Wrap a table in .table-card. Below --container-table each row is a card
      with labels; at --container-table and up it's a normal table. */
   .table-card {
-    @apply @container overflow-x-auto;
+    @apply @container overflow-hidden @table:overflow-x-auto;
   }
 
   .stacked-table {
