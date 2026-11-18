@@ -486,7 +486,7 @@ function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-black">
       {/* Sticky top bar: stays visible while scrolling, slightly see-through */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-sidebar/90 backdrop-blur">
+      <header className="min-[372px]:sticky top-0 z-50 border-b border-white/10 bg-sidebar/90 backdrop-blur">
         <div className={`${container} flex items-center justify-between py-4 max-[371px]:flex-col max-[371px]:gap-4`}>
           <Link to="/" className="flex items-center">
             <img
