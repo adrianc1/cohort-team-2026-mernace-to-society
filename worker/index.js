@@ -17,7 +17,6 @@ import { executeBillPayment } from "./actions/payment/pay-bill.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from the project root folder
 dotenv.config({
   path: path.join(__dirname, "../.env"),
 });
@@ -33,7 +32,6 @@ async function runAutomation(billId) {
     console.log(`STARTING AUTOMATION FOR BILL: ${billId}`);
     console.log(`=================================\n`);
 
-    // 1. Fetch bill context, portal URL, account number, and saved payment methods
     const bill = await fetchBillWithContext(billId);
 
     console.log(`Vendor Name: ${bill.vendorName}`);
@@ -42,7 +40,6 @@ async function runAutomation(billId) {
     console.log(`Property Address: ${bill.property?.street}, ${bill.property?.city}`);
     console.log(`Loaded Payment Methods: ${bill.paymentMethods.length}`);
 
-    // 2. Configure trusted domains for security checks
     const initialDomain = new URL(bill.portalUrl).hostname.toLowerCase();
     const trustedDomains = new Set([initialDomain]);
 
@@ -53,20 +50,15 @@ async function runAutomation(billId) {
       .filter(Boolean)
       .forEach((domain) => trustedDomains.add(domain));
 
-    console.log("Trusted domains:", [...trustedDomains]);
-
-    // 3. Initialize Browser & Stagehand (Runs in headed mode locally so you can watch!)
     const browserSession = await initializeBrowser();
     browser = browserSession.browser;
     stagehand = browserSession.stagehand;
     const page = browserSession.page;
 
-    // 4. Open Master Biller Portal
     console.log(`\nOpening vendor portal website...`);
     await page.goto(bill.portalUrl);
     console.log("Website opened. Current URL:", await page.url());
 
-    // 5. Navigate to Login Page
     const loginResult = await navigateToLogin(
       page,
       stagehand,
@@ -79,19 +71,17 @@ async function runAutomation(billId) {
       return;
     }
 
-    // 6. Authenticate Customer
     const authentication = await authenticateCustomer(page, stagehand);
 
     if (authentication.status === "MFA_REQUIRED") {
       console.log("\n⚠️ Multi-Factor Authentication (MFA) required.");
-      console.log("Automation paused for manual customer verification.");
-      
       await updateAudit({
         billId: bill.id,
         action: "automation_paused",
         fromStatus: bill.status,
         toStatus: "needs_review",
         note: "Paused due to MFA requirement.",
+        userId: bill.created_by,
       });
       return;
     }
@@ -100,7 +90,6 @@ async function runAutomation(billId) {
       throw new Error("Customer authentication failed.");
     }
 
-    // 7. Navigate to Bill-Pay Page & Match Account Number
     await navigateToBillPay(
       page,
       stagehand,
@@ -109,44 +98,13 @@ async function runAutomation(billId) {
       trustedDomains
     );
 
-    // 8. Extract & Verify Bill Details from Page DOM
     await verifyBillDetails(page, stagehand, bill);
 
-    // 9. If bill is approved, proceed to automated payment execution and receipt storage
     if (bill.status === "approved") {
       console.log("\nBill status is 'approved'. Proceeding to live payment execution...");
       const paymentResult = await executeBillPayment(page, stagehand, bill, supabase);
 
       if (paymentResult.success) {
-        let receiptStoragePath = null;
-
-        // Download and store the PDF receipt in Supabase storage if Stagehand found a download link
-        if (paymentResult.receiptUrl) {
-          try {
-            console.log("Downloading receipt PDF from vendor portal...");
-            const pdfResponse = await fetch(paymentResult.receiptUrl);
-            
-            if (pdfResponse.ok) {
-              const pdfBuffer = await pdfResponse.arrayBuffer();
-              const fileName = `receipt-${bill.id}-${Date.now()}.pdf`;
-
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from("receipts")
-                .upload(fileName, Buffer.from(pdfBuffer), { contentType: "application/pdf" });
-
-              if (!uploadError && uploadData) {
-                receiptStoragePath = uploadData.path;
-                console.log("Receipt successfully uploaded to bucket path:", receiptStoragePath);
-              } else {
-                console.error("Supabase storage upload failed:", uploadError?.message);
-              }
-            }
-          } catch (pdfErr) {
-            console.error("Non-fatal: Failed to download/upload receipt PDF:", pdfErr.message);
-          }
-        }
-
-        // Update bill status to 'paid' in Supabase
         const { error: billUpdateError } = await supabase
           .from("bill")
           .update({ 
@@ -159,7 +117,6 @@ async function runAutomation(billId) {
           console.error("Failed to update bill status in Supabase:", billUpdateError.message);
         }
 
-        // Insert payment record into the payment table with the secure storage path
         const { error: paymentInsertError } = await supabase
           .from("payment")
           .insert({
@@ -168,7 +125,9 @@ async function runAutomation(billId) {
             status: "success",
             method: [paymentResult.methodUsed || "card"],
             confirmation_number: paymentResult.confirmationNumber || `CONF-${Date.now()}`,
-            receipt_url: receiptStoragePath, // Stores bucket path for secure signed URL generation
+            receipt_url: paymentResult.receiptUrl,
+            failure_reason: "",
+            attempted_by: bill.created_by,
             attempted_at: new Date().toISOString(),
           });
 
@@ -184,51 +143,29 @@ async function runAutomation(billId) {
           fromStatus: "approved",
           toStatus: "paid",
           note: `Successfully paid $${bill.amount} using ${paymentResult.methodUsed}.`,
+          userId: bill.created_by,
         });
       }
     } else {
       console.log(`\nBill status is '${bill.status}'. Stopping before payment execution.`);
     }
 
-    // 10. Final Success Logging
     console.log(`\n=================================`);
     console.log("AUTOMATION COMPLETED SUCCESSFULLY");
     console.log(`=================================\n`);
-    console.log("Vendor:", bill.vendorName);
-    console.log("Account Number:", bill.accountNumber);
-    console.log("Current Page URL:", await page.url());
 
   } catch (error) {
     console.error(`\n❌ AUTOMATION ERROR: ${error.message}`);
     process.exitCode = 1;
   } finally {
-    console.log(`\n=================================`);
-    console.log("CLEANING UP BROWSER RESOURCES");
-    console.log(`=================================\n`);
-
     if (stagehand) {
-      try {
-        await stagehand.close();
-        console.log("Stagehand closed.");
-      } catch (e) {
-        console.error("Stagehand close error:", e.message);
-      }
+      try { await stagehand.close(); } catch (e) {}
     }
-
     if (browser) {
-      try {
-        await browser.close();
-        console.log("Browser closed.");
-      } catch (e) {
-        console.error("Browser close error:", e.message);
-      }
+      try { await browser.close(); } catch (e) {}
     }
   }
 }
-
-// ==========================================
-// EXECUTION ENTRYPOINT
-// ==========================================
 
 const BILL_ID = process.env.BILL_ID;
 
