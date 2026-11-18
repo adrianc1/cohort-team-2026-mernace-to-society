@@ -32,6 +32,7 @@ export function validateBill(body) {
 		due_date,
 		vendor_account_id,
 		review_reason,
+		bill_url,
 	} = body;
 
 	if (review_reason != null && typeof review_reason !== 'string') {
@@ -84,6 +85,29 @@ export function validateBill(body) {
 		return { ok: false, error: 'Vendor account is required' };
 	}
 
+	// bill_url is optional. Three scenarios:
+	// - The request has no bill_url -> keep the server's saved URL
+	// - bill_url is empty '' or null -> the user deleted it so delete it on the server side as well
+	// - bill_url has a value -> it needs to be a valid http(s) link, so we run the same check as vendor portal_url
+	let billUrl;
+	if (bill_url === null || (typeof bill_url === 'string' && bill_url.trim() === '')) {
+		billUrl = null;
+	} else if (bill_url !== undefined) {
+		if (typeof bill_url !== 'string' || bill_url.trim().length > 2048) {
+			return { ok: false, error: 'Bill URL must be text, 2048 characters or less' };
+		}
+		let parsed;
+		try {
+			parsed = new URL(bill_url.trim());
+		} catch {
+			return { ok: false, error: 'Bill URL is not a valid URL' };
+		}
+		if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+			return { ok: false, error: 'Bill URL must start with http:// or https://' };
+		}
+		billUrl = parsed.href;
+	}
+
 	return {
 		ok: true,
 		value: {
@@ -93,6 +117,7 @@ export function validateBill(body) {
 			due_date,
 			vendor_account_id,
 			review_reason: normalizedReviewReason || null,
+			...(billUrl !== undefined && { bill_url: billUrl }),
 		},
 	};
 }

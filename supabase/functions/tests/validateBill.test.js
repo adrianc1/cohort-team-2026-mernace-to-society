@@ -50,6 +50,19 @@ Deno.test("drops fields the user shouldn't control", () => {
 	assertEquals(result, { ok: true, value: valid });
 });
 
+Deno.test('leaves bill_url out when it is not sent', () => {
+	assertEquals('bill_url' in validateBill(valid).value, false);
+});
+
+Deno.test('blank bill_url becomes null', () => {
+	assertEquals(validateBill({ ...valid, bill_url: ' ' }).value.bill_url, null);
+});
+
+Deno.test('keeps a valid bill_url', ()=> {
+	const result = validateBill({ ...valid, bill_url: 'https://pay.example.com/bill' });
+	assertEquals(result.value.bill_url, 'https://pay.example.com/bill');
+});
+
 const invalidCases = [
 	['null body', null],
 	['array body', [valid]],
@@ -78,6 +91,10 @@ const invalidCases = [
 	['vendor account as number', { ...valid, vendor_account_id: 42 }],
 	['review reason as number', { ...valid, review_reason: 42 }],
 	['review reason too long', { ...valid, review_reason: 'x'.repeat(2001) }],
+	['bill url not a url', { ...valid, bill_url: 'pay dot com' }],
+	['bill url without scheme', { ...valid, bill_url: 'www.example.com' }],
+	['bill url javascript scheme', { ...valid, bill_url: 'javascript:alert(1)' }],
+	['bill url as number', { ...valid, bill_url: 42 }],
 ];
 
 for (const [label, input] of invalidCases) {

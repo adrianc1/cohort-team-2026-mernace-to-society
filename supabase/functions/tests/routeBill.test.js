@@ -98,6 +98,12 @@ Deno.test('no line items skips that check', () => {
 	assertEquals(routeBill({ ...cleanBill, line_items: [] }, one).status, 'pending');
 });
 
+Deno.test("a bill URL without https:// doesn't send the bill to review", () => {
+	const route = routeBill({ ...cleanBill, bill_url: 'www.example.com/pay' }, one);
+	assertEquals(route.status, 'pending');
+	assertEquals(route.review_reason, null);
+});
+
 Deno.test('unreadable values are saved as null, not guessed', () => {
 	const route = routeBill({
 		...cleanBill,
