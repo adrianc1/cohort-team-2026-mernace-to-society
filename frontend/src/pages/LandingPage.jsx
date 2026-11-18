@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import billioLogo from "../assets/billioLogo.png";
+import billioLogo from "../assets/billio-dark.png";
 import Footer from "../components/Footer";
 
 // Shared page width and side padding for every section
@@ -486,16 +486,16 @@ function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-black">
       {/* Sticky top bar: stays visible while scrolling, slightly see-through */}
-      <header className="sticky top-0 z-50 border-b border-white/10 bg-sidebar/90 backdrop-blur">
-        <div className={`${container} flex items-center justify-between py-4`}>
+      <header className="min-[372px]:sticky top-0 z-50 border-b border-white/10 bg-sidebar/90 backdrop-blur">
+        <div className={`${container} flex items-center justify-between py-4 max-[371px]:flex-col max-[371px]:gap-4`}>
           <Link to="/" className="flex items-center">
             <img
               src={billioLogo}
               alt="Billio home"
-              className="-my-6 h-20 w-auto md:h-24"
+              className="object-contain w-auto h-13"
             />
           </Link>
-          <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
+          <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2 max-[371px]:-ml-[12px]">
             {[
               ["#features", "Features"],
               ["#how-it-works", "How it works"],
@@ -511,11 +511,11 @@ function LandingPage() {
             ))}
             <Link
               to="/login"
-              className="rounded-lg px-3 py-2 text-sm font-semibold text-white hover:bg-sidebar-hover"
+              className="rounded-lg flex-nowrap whitespace-nowrap px-3 py-2 text-sm font-semibold text-white hover:bg-sidebar-hover"
             >
               Log in
             </Link>
-            <Link to="/login" className="btn-primary px-4 py-2 text-sm">
+            <Link to="/login" className="btn-primary flex-nowrap whitespace-nowrap px-4 py-2 text-sm">
               Get started
             </Link>
           </nav>
