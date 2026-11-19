@@ -5,6 +5,16 @@ import VendorAccountForm from "./VendorAccountForm";
 
 const ADD_PROPERTY_OPTION = "__add_property__";
 const ADD_VENDOR_ACCOUNT_OPTION = "__add_vendor_account__";
+const PERSON_FLAG_REASON = "Flagged for review";
+
+// The AI's part of a review reason, with the person's flag taken out
+function aiReviewReason(reason) {
+  if (!reason) return "";
+  return reason
+    .split(". ")
+    .filter((part) => part !== PERSON_FLAG_REASON)
+    .join(". ");
+}
 
 async function invokeFunction(name, body, fallbackMessage) {
   const { data, error } = await supabase.functions.invoke(name, { body });
@@ -39,6 +49,7 @@ const initialFormData = {
   invoiceDate: "",
   dueDate: "",
   comments: "",
+  flagForReview: false,
   approver: "",
   billUrl: "",
 };
@@ -57,6 +68,9 @@ function billToFormData(bill) {
     dueDate: bill.due_date ?? "",
     billUrl: bill.bill_url ?? "",
     comments: bill.comments ?? "",
+    flagForReview: (bill.review_reason ?? "")
+      .split(". ")
+      .includes(PERSON_FLAG_REASON),
   };
 }
 
@@ -145,7 +159,8 @@ function BillDetailsForm({
   }, [formData.property, bill?.property_id, bill?.vendor_account_id]);
 
   function handleChange(event) {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
+    const fieldValue = type === "checkbox" ? checked : value;
 
     if (name === "property" && value === ADD_PROPERTY_OPTION) {
       setPropertyFormError("");
@@ -161,7 +176,7 @@ function BillDetailsForm({
 
     setFormData((currentForm) => ({
       ...currentForm,
-      [name]: value,
+      [name]: fieldValue,
       // A vendor account belongs to one property, so clear it when the property changes
       ...(name === "property" && { vendorAccount: "" }),
     }));
@@ -278,6 +293,8 @@ function BillDetailsForm({
     try {
       // Only send fields the bill table has columns for. Approver stays in
       // the UI until the table supports it.
+      const aiReason = aiReviewReason(bill?.review_reason);
+
       const billFields = {
         invoice_number: formData.invoiceNumber,
         amount: Number(formData.amount),
@@ -286,6 +303,9 @@ function BillDetailsForm({
         vendor_account_id: formData.vendorAccount,
         bill_url: formData.billUrl.trim() || null,
         comments: formData.comments,
+        review_reason: formData.flagForReview
+          ? [aiReason, PERSON_FLAG_REASON].filter(Boolean).join(". ")
+          : null,
       };
 
       const { data, error } = isEditing
@@ -500,6 +520,17 @@ function BillDetailsForm({
           <p className="mt-1 text-right text-xs text-gray-500">
             {formData.comments.length}/2000
           </p>
+          <label htmlFor="flagForReview" className="flex items-center gap-2 text-sm">
+          <input
+            id="flagForReview"
+            name="flagForReview"
+            type="checkbox"
+            checked={formData.flagForReview}
+            onChange={handleChange}
+            className="h-4 w-4"
+          />
+            Flag this bill for review
+          </label>
         </div>
 
         {/* Hidden for now: approved_by is set when someone actually approves the bill,
