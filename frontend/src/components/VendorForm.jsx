@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useProperties } from "../hooks/useProperties";
+import { supabase } from "../../utils/supabase";
 
 const emptyVendor = {
   name: "",
@@ -60,6 +61,11 @@ function VendorForm({
     };
   });
 
+  const [editingAccountId, setEditingAccountId] = useState(null);
+  const [editingAccountData, setEditingAccountData] = useState(null);
+  const [accountError, setAccountError] = useState("");
+  const [savingAccount, setSavingAccount] = useState(false);
+
   useEffect(() => {
     fetchProperties().catch(() => {});
   }, [fetchProperties]);
@@ -67,6 +73,105 @@ function VendorForm({
   function handleChange(event) {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
+  }
+
+  function startEditingAccount(account) {
+    try {
+      console.log("Starting edit for account:", account);
+      
+      // Handle both old format (with property_id) and new format (with vendor_account_property)
+      let selectedProperties = [];
+      
+      if (account.vendor_account_property && Array.isArray(account.vendor_account_property)) {
+        // New format: has junction table data
+        console.log("Using new format with vendor_account_property");
+        selectedProperties = account.vendor_account_property
+          .map((ap) => {
+            if (ap.property && ap.property.id) {
+              return ap.property.id;
+            }
+            console.warn("Missing property data in:", ap);
+            return null;
+          })
+          .filter(Boolean);
+      } else if (account.property_id) {
+        // Old format: has single property_id
+        console.log("Using old format with property_id:", account.property_id);
+        selectedProperties = [account.property_id];
+      }
+      
+      console.log("Selected properties:", selectedProperties);
+      
+      // Use account.id if available, otherwise use account_number as unique identifier
+      const accountId = account.id || account.account_number;
+      console.log("Account ID being used:", accountId);
+      
+      setEditingAccountId(accountId);
+      setEditingAccountData({
+        accountNumber: account.account_number,
+        service: account.service,
+        selectedProperties,
+      });
+      setAccountError("");
+      console.log("Edit mode activated for account:", accountId);
+    } catch (err) {
+      console.error("Error starting account edit:", err);
+      setAccountError("Failed to load account details: " + err.message);
+    }
+  }
+
+  function cancelEditingAccount() {
+    setEditingAccountId(null);
+    setEditingAccountData(null);
+    setAccountError("");
+  }
+
+  async function handleSaveAccount() {
+    if (!editingAccountData.accountNumber.trim()) {
+      setAccountError("Account number is required");
+      return;
+    }
+    if (!editingAccountData.service.trim()) {
+      setAccountError("Service type is required");
+      return;
+    }
+    if (editingAccountData.selectedProperties.length === 0) {
+      setAccountError("At least one property must be selected");
+      return;
+    }
+
+    setSavingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "update-vendor-account",
+        {
+          body: {
+            accountId: editingAccountId,
+            accountNumber: editingAccountData.accountNumber.trim(),
+            service: editingAccountData.service.trim(),
+            propertyIds: editingAccountData.selectedProperties,
+          },
+        },
+      );
+
+      if (error || data?.error) {
+        setAccountError(data?.error || error?.message || "Failed to save account");
+        return;
+      }
+
+      cancelEditingAccount();
+      // Trigger parent to refresh vendor data
+      await onSubmit({
+        name: formData.name.trim(),
+        aliases: formData.aliases,
+        portal_url: formData.portal_url.trim() || null,
+        email: formData.email.trim() || null,
+        phone_number: formData.phone_number.trim() || null,
+        status: "active",
+      });
+    } finally {
+      setSavingAccount(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -300,6 +405,144 @@ function VendorForm({
                   : "To create an account, provide the account number, service type, and property."}
               </p>
             </fieldset>
+          )}
+
+          {editMode && vendorData?.vendor_account && vendorData.vendor_account.length > 0 && (
+            <div className="border-t border-secondary pt-4">
+              <h3 className="mb-3 font-semibold">Vendor Accounts</h3>
+              {editingAccountId && editingAccountData ? (
+                <div className="space-y-3 rounded-lg bg-blue-50 p-4">
+                  <div>
+                    <label className="label">Account Number</label>
+                    <input
+                      type="text"
+                      value={editingAccountData.accountNumber}
+                      onChange={(e) =>
+                        setEditingAccountData((curr) => ({
+                          ...curr,
+                          accountNumber: e.target.value,
+                        }))
+                      }
+                      className={inputClassName}
+                      disabled={savingAccount}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Service Type</label>
+                    <input
+                      type="text"
+                      value={editingAccountData.service}
+                      onChange={(e) =>
+                        setEditingAccountData((curr) => ({
+                          ...curr,
+                          service: e.target.value,
+                        }))
+                      }
+                      className={inputClassName}
+                      disabled={savingAccount}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Properties</label>
+                    <div className="space-y-2">
+                      {properties.map((prop) => (
+                        <label
+                          key={prop.id}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={editingAccountData.selectedProperties.includes(
+                              prop.id,
+                            )}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditingAccountData((curr) => ({
+                                  ...curr,
+                                  selectedProperties: [
+                                    ...curr.selectedProperties,
+                                    prop.id,
+                                  ],
+                                }));
+                              } else {
+                                setEditingAccountData((curr) => ({
+                                  ...curr,
+                                  selectedProperties:
+                                    curr.selectedProperties.filter(
+                                      (id) => id !== prop.id,
+                                    ),
+                                }));
+                              }
+                            }}
+                            disabled={savingAccount}
+                            className="checkbox"
+                          />
+                          <span className="text-sm">{prop.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                  {accountError && (
+                    <p className="text-xs text-red-700">{accountError}</p>
+                  )}
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={cancelEditingAccount}
+                      className="btn-secondary px-3 py-1 text-xs"
+                      disabled={savingAccount}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveAccount}
+                      className="btn-primary px-3 py-1 text-xs"
+                      disabled={savingAccount}
+                    >
+                      {savingAccount ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {vendorData.vendor_account.map((account) => (
+                    <div
+                      key={account.id || `${account.vendor_id}-${account.account_number}`}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{account.account_number}</p>
+                        <p className="text-xs text-gray-600">
+                          {account.service}
+                          {account.vendor_account_property &&
+                            account.vendor_account_property.length > 0 && (
+                              <span>
+                                {" "}
+                                •{" "}
+                                {account.vendor_account_property
+                                  .map((ap) => ap.property.name)
+                                  .join(", ")}
+                              </span>
+                            )}
+                          {account.property?.name && (
+                            <span> • {account.property.name}</span>
+                          )}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditingAccount(account)}
+                        className="link text-xs whitespace-nowrap ml-2"
+                        disabled={isSubmitting}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
           {error && (
