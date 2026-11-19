@@ -29,6 +29,22 @@ export default {
 			return Response.json({ error: result.error }, { status: 400 });
 		}
 
+		const { data: canEditBills, error: authorizationError } =
+			await supabase.rpc('can_approve_bills');
+		if (authorizationError) {
+			console.error('Bill edit authorization check failed:', authorizationError);
+			return Response.json(
+				{ error: 'Could not verify bill edit permissions' },
+				{ status: 500 },
+			);
+		}
+		if (canEditBills !== true) {
+			return Response.json(
+				{ error: 'Only active managers and admins can edit bills' },
+				{ status: 403 },
+			);
+		}
+
 		// property_id comes from the vendor account, so the two can never disagree
 		const { data: account, error: accountError } = await supabase
 			.from('vendor_account')
@@ -46,21 +62,19 @@ export default {
 			);
 		}
 
-		// Only bills awaiting review can be edited. Filtering on status here means
-		// an approved/rejected bill is left untouched if the page loaded earlier.
-		// status, approved_by, created_by and source are never taken from the body.
-		const { data, error } = await supabase
-			.from('bill')
-			.update({
-				...result.value,
-				property_id: account.property_id,
-				status: result.value.review_reason ? 'needs_review' : 'pending',
-			})
-			.eq('id', body.id)
-			// extraction_failed: the AI couldn't read it, so a person fills it in here
-			.in('status', ['pending', 'needs_review', 'extraction_failed'])
-			.select()
-			.maybeSingle();
+		// The database function locks and updates eligible bills while recording
+		// the audit event in the same transaction.
+		const { data, error } = await supabase.rpc('update_bill_with_audit', {
+			p_bill_id: body.id,
+			p_invoice_number: result.value.invoice_number,
+			p_amount: result.value.amount,
+			p_issue_date: result.value.issue_date,
+			p_due_date: result.value.due_date,
+			p_vendor_account_id: result.value.vendor_account_id,
+			p_review_reason: result.value.review_reason,
+			p_bill_url: result.value.bill_url ?? null,
+			p_update_bill_url: Object.hasOwn(result.value, 'bill_url'),
+		});
 
 		if (error?.code === UNIQUE_VIOLATION) {
 			return Response.json(
@@ -71,13 +85,23 @@ export default {
 			);
 		}
 		if (error) {
+			if (error.code === '42501') {
+				return Response.json(
+					{ error: 'Only active managers and admins can edit bills' },
+					{ status: 403 },
+				);
+			}
+			if (error.code === 'P0002') {
+				return Response.json(
+					{ error: 'Bill was not found or is no longer pending' },
+					{ status: 409 },
+				);
+			}
+			if (error.code === '22023') {
+				return Response.json({ error: error.message }, { status: 400 });
+			}
+			console.error('Atomic bill update failed:', error);
 			return Response.json({ error: error.message }, { status: 500 });
-		}
-		if (!data) {
-			return Response.json(
-				{ error: 'Bill was not found or is no longer pending' },
-				{ status: 409 },
-			);
 		}
 
 		return Response.json({ data });
