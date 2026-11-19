@@ -60,11 +60,16 @@ Supabase PostgreSQL stores the application records. The following tables and fie
 | `user` | `id`, `name`, `role` | Application user details and approval role |
 | `property` | `id`, `name`, `status` | Managed properties |
 | `vendor` | `id`, `name`, `status` | Vendor records |
-| `vendor_account` | `id`, `vendor_id`, `property_id`, `account_number`, `service`, `payment_type`, `status` | Vendor service/account associated with a property |
+| `vendor_account` | `id`, `vendor_id`, `property_id`, `additional_property_ids`, `account_number`, `service`, `payment_type`, `status` | Vendor account with a primary property and optional additional properties |
 | `bill` | `id`, `invoice_number`, `amount`, `issue_date`, `due_date`, `status`, `review_reason`, `rejection_reason`, `vendor_account_id`, `property_id`, `created_by`, `approved_by`, `approved_on`, `source` | Bill details and workflow state |
 | `audit_trail` | `bill_id`, `user_id`, `action`, `from_status`, `to_status`, `note`, `created_at` | Approval and rejection history |
 
 Database changes are maintained in `supabase/migrations/`. Local seed data is in `supabase/seed.sql`.
+
+The account's `property_id` remains the primary property used for manual and
+uploaded bills. Additional properties are informational and do not change bill
+routing. Active managers and administrators can change them; remove an
+additional property from accounts before deleting that property.
 
 ## Authentication Flow
 

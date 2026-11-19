@@ -227,6 +227,9 @@ function VendorDetailsPage() {
                         <td className={stackedCellClassName}>
                           <span className="stacked-label">Property</span>
                           {account.property?.name || "—"}
+                          {account.additional_properties?.map((property) => (
+                            <span key={property.id}>, {property.name || "Unavailable property"}</span>
+                          ))}
                         </td>
                       </tr>
                     ))}

@@ -11,15 +11,55 @@ const emptyVendor = {
   account_number: "",
   service: "",
   property_id: "",
+  additional_property_ids: [],
 };
 
 const inputClassName = "input";
+
+function AdditionalProperties({
+  properties,
+  primaryPropertyId,
+  selected,
+  onChange,
+  loading,
+  error,
+  onRetry,
+  disabled,
+}) {
+  return (
+    <fieldset>
+      <legend className="label">Additional properties (optional)</legend>
+      <p className="mb-2 text-xs text-gray-600">
+        Bills will continue to use the primary property.
+      </p>
+      {properties.filter((property) => property.id !== primaryPropertyId).map((property) => (
+        <label key={property.id} className="flex items-center gap-2 py-1 text-sm">
+          <input
+            type="checkbox"
+            disabled={disabled || loading || Boolean(error)}
+            checked={selected.includes(property.id)}
+            onChange={(event) =>
+              onChange(event.target.checked
+                ? [...selected, property.id]
+                : selected.filter((id) => id !== property.id))
+            }
+          />
+          {property.name}
+        </label>
+      ))}
+      {loading && <p className="text-sm text-gray-600">Loading properties...</p>}
+      {error && <p role="alert" className="text-sm text-red-700">Could not load properties: {error}</p>}
+      {error && <button type="button" onClick={onRetry} disabled={disabled} className="link">Retry</button>}
+    </fieldset>
+  );
+}
 
 function VendorForm({
   isSubmitting = false,
   error = "",
   onCancel,
   onSubmit,
+  onAccountSaved,
   editMode = false,
   addAccountMode = false,
   vendorData = null,
@@ -50,6 +90,7 @@ function VendorForm({
         account_number: initialValues?.account_number || "",
         service: "",
         property_id: initialValues?.property_id || "",
+        additional_property_ids: [],
       };
     }
     return {
@@ -72,52 +113,28 @@ function VendorForm({
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((current) => ({ ...current, [name]: value }));
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "property_id"
+        ? { additional_property_ids: current.additional_property_ids.filter((id) => id !== value) }
+        : {}),
+    }));
   }
 
   function startEditingAccount(account) {
-    try {
-      console.log("Starting edit for account:", account);
-      
-      // Handle both old format (with property_id) and new format (with vendor_account_property)
-      let selectedProperties = [];
-      
-      if (account.vendor_account_property && Array.isArray(account.vendor_account_property)) {
-        // New format: has junction table data
-        console.log("Using new format with vendor_account_property");
-        selectedProperties = account.vendor_account_property
-          .map((ap) => {
-            if (ap.property && ap.property.id) {
-              return ap.property.id;
-            }
-            console.warn("Missing property data in:", ap);
-            return null;
-          })
-          .filter(Boolean);
-      } else if (account.property_id) {
-        // Old format: has single property_id
-        console.log("Using old format with property_id:", account.property_id);
-        selectedProperties = [account.property_id];
-      }
-      
-      console.log("Selected properties:", selectedProperties);
-      
-      // Use account.id if available, otherwise use account_number as unique identifier
-      const accountId = account.id || account.account_number;
-      console.log("Account ID being used:", accountId);
-      
-      setEditingAccountId(accountId);
-      setEditingAccountData({
-        accountNumber: account.account_number,
-        service: account.service,
-        selectedProperties,
-      });
-      setAccountError("");
-      console.log("Edit mode activated for account:", accountId);
-    } catch (err) {
-      console.error("Error starting account edit:", err);
-      setAccountError("Failed to load account details: " + err.message);
+    if (!account.id || !account.property_id || !Array.isArray(account.additional_property_ids)) {
+      setAccountError("Account details are incomplete. Refresh the vendor list and try again.");
+      return;
     }
+    setEditingAccountId(account.id);
+    setEditingAccountData({
+      accountNumber: account.account_number ?? "",
+      service: account.service ?? "",
+      primaryPropertyId: account.property_id,
+      additionalPropertyIds: account.additional_property_ids,
+    });
+    setAccountError("");
   }
 
   function cancelEditingAccount() {
@@ -135,8 +152,8 @@ function VendorForm({
       setAccountError("Service type is required");
       return;
     }
-    if (editingAccountData.selectedProperties.length === 0) {
-      setAccountError("At least one property must be selected");
+    if (propertiesLoading || propertiesError) {
+      setAccountError("Load properties before saving the account.");
       return;
     }
 
@@ -145,30 +162,29 @@ function VendorForm({
       const { data, error } = await supabase.functions.invoke(
         "update-vendor-account",
         {
+          method: "PUT",
           body: {
             accountId: editingAccountId,
             accountNumber: editingAccountData.accountNumber.trim(),
             service: editingAccountData.service.trim(),
-            propertyIds: editingAccountData.selectedProperties,
+            additionalPropertyIds: editingAccountData.additionalPropertyIds,
           },
         },
       );
 
-      if (error || data?.error) {
-        setAccountError(data?.error || error?.message || "Failed to save account");
-        return;
+      if (error) {
+        const details = await error.context?.json?.().catch(() => null);
+        throw new Error(details?.error || error.message || "Failed to save account.");
       }
-
+      if (data?.error) throw new Error(data.error);
+      try {
+        await onAccountSaved();
+      } catch {
+        throw new Error("Account was saved, but the vendor list could not be refreshed.");
+      }
       cancelEditingAccount();
-      // Trigger parent to refresh vendor data
-      await onSubmit({
-        name: formData.name.trim(),
-        aliases: formData.aliases,
-        portal_url: formData.portal_url.trim() || null,
-        email: formData.email.trim() || null,
-        phone_number: formData.phone_number.trim() || null,
-        status: "active",
-      });
+    } catch (caughtError) {
+      setAccountError(caughtError instanceof Error ? caughtError.message : "Failed to save account.");
     } finally {
       setSavingAccount(false);
     }
@@ -182,6 +198,7 @@ function VendorForm({
         account_number: formData.account_number.trim(),
         service: formData.service.trim(),
         property_id: formData.property_id,
+        additional_property_ids: formData.additional_property_ids,
       });
       return;
     }
@@ -206,6 +223,7 @@ function VendorForm({
       vendorPayload.account_number = formData.account_number.trim() || null;
       vendorPayload.service = formData.service.trim() || null;
       vendorPayload.property_id = formData.property_id || null;
+      vendorPayload.additional_property_ids = formData.additional_property_ids;
     }
 
     await onSubmit(vendorPayload);
@@ -359,7 +377,7 @@ function VendorForm({
 
               <div>
                 <label htmlFor="vendor-property" className="label">
-                  Property
+                  Primary property
                 </label>
                 <select
                   id="vendor-property"
@@ -399,6 +417,19 @@ function VendorForm({
                 )}
               </div>
 
+              {formData.property_id && (
+                <AdditionalProperties
+                  properties={properties}
+                  primaryPropertyId={formData.property_id}
+                  selected={formData.additional_property_ids}
+                  onChange={(ids) => setFormData((current) => ({ ...current, additional_property_ids: ids }))}
+                  loading={propertiesLoading}
+                  error={propertiesError}
+                  onRetry={() => fetchProperties().catch(() => {})}
+                  disabled={isSubmitting}
+                />
+              )}
+
               <p className="text-xs text-gray-600">
                 {accountRequired
                   ? "Account number, service type, and property are required."
@@ -413,8 +444,9 @@ function VendorForm({
               {editingAccountId && editingAccountData ? (
                 <div className="space-y-3 rounded-lg bg-blue-50 p-4">
                   <div>
-                    <label className="label">Account Number</label>
+                    <label htmlFor="edit-account-number" className="label">Account Number</label>
                     <input
+                      id="edit-account-number"
                       type="text"
                       value={editingAccountData.accountNumber}
                       onChange={(e) =>
@@ -428,8 +460,9 @@ function VendorForm({
                     />
                   </div>
                   <div>
-                    <label className="label">Service Type</label>
+                    <label htmlFor="edit-account-service" className="label">Service Type</label>
                     <input
+                      id="edit-account-service"
                       type="text"
                       value={editingAccountData.service}
                       onChange={(e) =>
@@ -442,49 +475,21 @@ function VendorForm({
                       disabled={savingAccount}
                     />
                   </div>
-                  <div>
-                    <label className="label">Properties</label>
-                    <div className="space-y-2">
-                      {properties.map((prop) => (
-                        <label
-                          key={prop.id}
-                          className="flex items-center gap-2 cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={editingAccountData.selectedProperties.includes(
-                              prop.id,
-                            )}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditingAccountData((curr) => ({
-                                  ...curr,
-                                  selectedProperties: [
-                                    ...curr.selectedProperties,
-                                    prop.id,
-                                  ],
-                                }));
-                              } else {
-                                setEditingAccountData((curr) => ({
-                                  ...curr,
-                                  selectedProperties:
-                                    curr.selectedProperties.filter(
-                                      (id) => id !== prop.id,
-                                    ),
-                                }));
-                              }
-                            }}
-                            disabled={savingAccount}
-                            className="checkbox"
-                          />
-                          <span className="text-sm">{prop.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  {accountError && (
-                    <p className="text-xs text-red-700">{accountError}</p>
-                  )}
+                  <p className="text-sm">
+                    Primary property: {properties.find((property) => property.id === editingAccountData.primaryPropertyId)?.name
+                      || vendorData.vendor_account.find((account) => account.id === editingAccountId)?.property?.name
+                      || "Unavailable"}
+                  </p>
+                  <AdditionalProperties
+                    properties={properties}
+                    primaryPropertyId={editingAccountData.primaryPropertyId}
+                    selected={editingAccountData.additionalPropertyIds}
+                    onChange={(ids) => setEditingAccountData((current) => ({ ...current, additionalPropertyIds: ids }))}
+                    loading={propertiesLoading}
+                    error={propertiesError}
+                    onRetry={() => fetchProperties().catch(() => {})}
+                    disabled={savingAccount}
+                  />
                   <div className="flex gap-2 justify-end">
                     <button
                       type="button"
@@ -515,19 +520,12 @@ function VendorForm({
                         <p className="font-medium text-sm">{account.account_number}</p>
                         <p className="text-xs text-gray-600">
                           {account.service}
-                          {account.vendor_account_property &&
-                            account.vendor_account_property.length > 0 && (
-                              <span>
-                                {" "}
-                                •{" "}
-                                {account.vendor_account_property
-                                  .map((ap) => ap.property.name)
-                                  .join(", ")}
-                              </span>
-                            )}
                           {account.property?.name && (
-                            <span> • {account.property.name}</span>
+                              <span> • Primary: {account.property.name}</span>
                           )}
+                            {(account.additional_property_ids || []).map((id) => (
+                              <span key={id}> • {properties.find((property) => property.id === id)?.name || "Property unavailable"}</span>
+                            ))}
                         </p>
                       </div>
                       <button
@@ -545,6 +543,10 @@ function VendorForm({
             </div>
           )}
 
+          {accountError && (
+            <p role="alert" className="alert-error">{accountError}</p>
+          )}
+
           {error && (
             <p role="alert" className="alert-error">
               {error}
@@ -555,14 +557,14 @@ function VendorForm({
             <button
               type="button"
               onClick={onCancel}
-              disabled={isSubmitting}
+              disabled={isSubmitting || savingAccount}
               className="btn-secondary px-4 py-2 text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || savingAccount || Boolean(editingAccountId)}
               className="btn-primary px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting

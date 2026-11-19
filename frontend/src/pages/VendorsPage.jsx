@@ -719,6 +719,7 @@ function VendorsPage() {
           error={formError}
           onCancel={closeVendorForm}
           onSubmit={editVendorId ? editVendor : handleCreateVendor}
+          onAccountSaved={fetchVendors}
           editMode={!!editVendorId}
           vendorData={
             editVendorId

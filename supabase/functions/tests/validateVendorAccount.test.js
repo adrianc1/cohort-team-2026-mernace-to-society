@@ -84,3 +84,17 @@ Deno.test('rejects a body that is not an object', () => {
 		assertEquals(validateVendorAccount(body).error, 'Body must be an object');
 	}
 });
+
+Deno.test('accepts additional property IDs without changing the primary property', () => {
+	const extra = '22222222-2222-4222-8222-222222222222';
+	const result = validateVendorAccount({ ...valid, additional_property_ids: [extra] });
+	assertEquals(result.value.property_id, valid.property_id);
+	assertEquals(result.value.additional_property_ids, [extra]);
+});
+
+Deno.test('rejects invalid, duplicate, or primary additional properties', () => {
+	const extra = '22222222-2222-4222-8222-222222222222';
+	for (const additional_property_ids of [null, ['bad'], [extra, extra], [valid.property_id]]) {
+		assertEquals(validateVendorAccount({ ...valid, additional_property_ids }).ok, false);
+	}
+});

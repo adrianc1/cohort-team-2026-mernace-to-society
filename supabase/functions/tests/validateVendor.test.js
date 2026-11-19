@@ -92,6 +92,14 @@ Deno.test('rejects partial account information', () => {
 	assertEquals(result.ok, false);
 });
 
+Deno.test('validates additional properties when creating a vendor account', () => {
+	const extra = '22222222-2222-4222-8222-222222222222';
+	const result = validateVendor({ ...valid, ...validAccount, additional_property_ids: [extra] });
+	assertEquals(result.value.account.additional_property_ids, [extra]);
+	assertEquals(validateVendor({ ...valid, additional_property_ids: [extra] }).ok, false);
+	assertEquals(validateVendor({ ...valid, ...validAccount, additional_property_ids: [validAccount.property_id] }).ok, false);
+});
+
 const invalidCases = [
 	['null body', null],
 	['array body', [valid]],
