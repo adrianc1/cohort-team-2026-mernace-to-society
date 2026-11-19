@@ -460,7 +460,7 @@ function VendorsPage() {
         ))}
 
         {canEditRecords && (
-          <th className="table-only px-4 py-3 font-semibold @table-compact:w-24">
+          <th className="px-4 py-3 font-semibold @table-compact:w-24">
             Actions
           </th>
         )}
@@ -500,7 +500,7 @@ function VendorsPage() {
         ))}
 
         {canEditRecords && (
-          <td className="table-only px-4 py-3">
+          <td className="px-4 py-3">
             <button
               type="button"
               onClick={() => {
@@ -719,6 +719,7 @@ function VendorsPage() {
           error={formError}
           onCancel={closeVendorForm}
           onSubmit={editVendorId ? editVendor : handleCreateVendor}
+          onAccountSaved={fetchVendors}
           editMode={!!editVendorId}
           vendorData={
             editVendorId

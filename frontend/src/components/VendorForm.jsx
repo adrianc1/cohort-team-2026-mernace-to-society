@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useProperties } from "../hooks/useProperties";
+import { supabase } from "../../utils/supabase";
 
 const emptyVendor = {
   name: "",
@@ -10,15 +11,55 @@ const emptyVendor = {
   account_number: "",
   service: "",
   property_id: "",
+  additional_property_ids: [],
 };
 
 const inputClassName = "input";
+
+function AdditionalProperties({
+  properties,
+  primaryPropertyId,
+  selected,
+  onChange,
+  loading,
+  error,
+  onRetry,
+  disabled,
+}) {
+  return (
+    <fieldset>
+      <legend className="label">Additional properties (optional)</legend>
+      <p className="mb-2 text-xs text-gray-600">
+        Bills will continue to use the primary property.
+      </p>
+      {properties.filter((property) => property.id !== primaryPropertyId).map((property) => (
+        <label key={property.id} className="flex items-center gap-2 py-1 text-sm">
+          <input
+            type="checkbox"
+            disabled={disabled || loading || Boolean(error)}
+            checked={selected.includes(property.id)}
+            onChange={(event) =>
+              onChange(event.target.checked
+                ? [...selected, property.id]
+                : selected.filter((id) => id !== property.id))
+            }
+          />
+          {property.name}
+        </label>
+      ))}
+      {loading && <p className="text-sm text-gray-600">Loading properties...</p>}
+      {error && <p role="alert" className="text-sm text-red-700">Could not load properties: {error}</p>}
+      {error && <button type="button" onClick={onRetry} disabled={disabled} className="link">Retry</button>}
+    </fieldset>
+  );
+}
 
 function VendorForm({
   isSubmitting = false,
   error = "",
   onCancel,
   onSubmit,
+  onAccountSaved,
   editMode = false,
   addAccountMode = false,
   vendorData = null,
@@ -49,6 +90,7 @@ function VendorForm({
         account_number: initialValues?.account_number || "",
         service: "",
         property_id: initialValues?.property_id || "",
+        additional_property_ids: [],
       };
     }
     return {
@@ -60,13 +102,100 @@ function VendorForm({
     };
   });
 
+  const [editingAccountId, setEditingAccountId] = useState(null);
+  const [editingAccountData, setEditingAccountData] = useState(null);
+  const [accountError, setAccountError] = useState("");
+  const [savingAccount, setSavingAccount] = useState(false);
+
   useEffect(() => {
     fetchProperties().catch(() => {});
   }, [fetchProperties]);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    setFormData((current) => ({ ...current, [name]: value }));
+    setFormData((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "property_id"
+        ? { additional_property_ids: current.additional_property_ids.filter((id) => id !== value) }
+        : {}),
+    }));
+  }
+
+  function startEditingAccount(account) {
+    if (!account.id || !Array.isArray(account.additional_property_ids)) {
+      setAccountError("Account details are incomplete. Refresh the vendor list and try again.");
+      return;
+    }
+    setEditingAccountId(account.id);
+    setEditingAccountData({
+      accountNumber: account.account_number ?? "",
+      service: account.service ?? "",
+      primaryPropertyId: account.property_id ?? "",
+      additionalPropertyIds: account.additional_property_ids,
+    });
+    setAccountError("");
+  }
+
+  function cancelEditingAccount() {
+    setEditingAccountId(null);
+    setEditingAccountData(null);
+    setAccountError("");
+  }
+
+  async function handleSaveAccount() {
+    if (!editingAccountData.accountNumber.trim()) {
+      setAccountError("Account number is required");
+      return;
+    }
+    if (!editingAccountData.service.trim()) {
+      setAccountError("Service type is required");
+      return;
+    }
+    if (!editingAccountData.primaryPropertyId) {
+      setAccountError("Primary property is required");
+      return;
+    }
+    if (propertiesLoading || propertiesError) {
+      setAccountError("Load properties before saving the account.");
+      return;
+    }
+
+    setSavingAccount(true);
+    try {
+      const { data, error } = await supabase.functions.invoke(
+        "update-vendor-account",
+        {
+          method: "PUT",
+          body: {
+            accountId: editingAccountId,
+            accountNumber: editingAccountData.accountNumber.trim(),
+            service: editingAccountData.service.trim(),
+            propertyId: editingAccountData.primaryPropertyId,
+            additionalPropertyIds: editingAccountData.additionalPropertyIds,
+          },
+        },
+      );
+
+      if (error) {
+        const details = await error.context?.json?.().catch(() => null);
+        throw new Error(details?.error || error.message || "Failed to save account.");
+      }
+      if (data?.error) throw new Error(data.error);
+      if (data?.data?.property_id !== editingAccountData.primaryPropertyId) {
+        throw new Error("Account details may have been saved, but the primary property was not updated. The server may need to be updated.");
+      }
+      try {
+        await onAccountSaved();
+      } catch {
+        throw new Error("Account was saved, but the vendor list could not be refreshed.");
+      }
+      cancelEditingAccount();
+    } catch (caughtError) {
+      setAccountError(caughtError instanceof Error ? caughtError.message : "Failed to save account.");
+    } finally {
+      setSavingAccount(false);
+    }
   }
 
   async function handleSubmit(event) {
@@ -77,6 +206,7 @@ function VendorForm({
         account_number: formData.account_number.trim(),
         service: formData.service.trim(),
         property_id: formData.property_id,
+        additional_property_ids: formData.additional_property_ids,
       });
       return;
     }
@@ -101,6 +231,7 @@ function VendorForm({
       vendorPayload.account_number = formData.account_number.trim() || null;
       vendorPayload.service = formData.service.trim() || null;
       vendorPayload.property_id = formData.property_id || null;
+      vendorPayload.additional_property_ids = formData.additional_property_ids;
     }
 
     await onSubmit(vendorPayload);
@@ -254,7 +385,7 @@ function VendorForm({
 
               <div>
                 <label htmlFor="vendor-property" className="label">
-                  Property
+                  Primary property
                 </label>
                 <select
                   id="vendor-property"
@@ -294,12 +425,158 @@ function VendorForm({
                 )}
               </div>
 
+              {formData.property_id && (
+                <AdditionalProperties
+                  properties={properties}
+                  primaryPropertyId={formData.property_id}
+                  selected={formData.additional_property_ids}
+                  onChange={(ids) => setFormData((current) => ({ ...current, additional_property_ids: ids }))}
+                  loading={propertiesLoading}
+                  error={propertiesError}
+                  onRetry={() => fetchProperties().catch(() => {})}
+                  disabled={isSubmitting}
+                />
+              )}
+
               <p className="text-xs text-gray-600">
                 {accountRequired
                   ? "Account number, service type, and property are required."
                   : "To create an account, provide the account number, service type, and property."}
               </p>
             </fieldset>
+          )}
+
+          {editMode && vendorData?.vendor_account && vendorData.vendor_account.length > 0 && (
+            <div className="border-t border-secondary pt-4">
+              <h3 className="mb-3 font-semibold">Vendor Accounts</h3>
+              {editingAccountId && editingAccountData ? (
+                <div className="space-y-3 rounded-lg bg-blue-50 p-4">
+                  <div>
+                    <label htmlFor="edit-account-number" className="label">Account Number</label>
+                    <input
+                      id="edit-account-number"
+                      type="text"
+                      value={editingAccountData.accountNumber}
+                      onChange={(e) =>
+                        setEditingAccountData((curr) => ({
+                          ...curr,
+                          accountNumber: e.target.value,
+                        }))
+                      }
+                      className={inputClassName}
+                      disabled={savingAccount}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-account-service" className="label">Service Type</label>
+                    <input
+                      id="edit-account-service"
+                      type="text"
+                      value={editingAccountData.service}
+                      onChange={(e) =>
+                        setEditingAccountData((curr) => ({
+                          ...curr,
+                          service: e.target.value,
+                        }))
+                      }
+                      className={inputClassName}
+                      disabled={savingAccount}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="edit-account-property" className="label">Primary property</label>
+                    <select
+                      id="edit-account-property"
+                      value={editingAccountData.primaryPropertyId}
+                      onChange={(event) => {
+                        const propertyId = event.target.value;
+                        setEditingAccountData((current) => ({
+                          ...current,
+                          primaryPropertyId: propertyId,
+                          additionalPropertyIds: current.additionalPropertyIds.filter((id) => id !== propertyId),
+                        }));
+                      }}
+                      className={`${inputClassName} select max-w-full`}
+                      disabled={savingAccount || propertiesLoading || Boolean(propertiesError)}
+                    >
+                      <option value="">Select a property</option>
+                      {editingAccountData.primaryPropertyId &&
+                        !properties.some((property) => property.id === editingAccountData.primaryPropertyId) && (
+                          <option value={editingAccountData.primaryPropertyId}>Unavailable property</option>
+                        )}
+                      {properties.map((property) => (
+                        <option key={property.id} value={property.id}>{property.name}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-600">
+                      Changing the primary property affects new bills. Existing bills keep their property.
+                    </p>
+                  </div>
+                  <AdditionalProperties
+                    properties={properties}
+                    primaryPropertyId={editingAccountData.primaryPropertyId}
+                    selected={editingAccountData.additionalPropertyIds}
+                    onChange={(ids) => setEditingAccountData((current) => ({ ...current, additionalPropertyIds: ids }))}
+                    loading={propertiesLoading}
+                    error={propertiesError}
+                    onRetry={() => fetchProperties().catch(() => {})}
+                    disabled={savingAccount}
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={cancelEditingAccount}
+                      className="btn-secondary px-3 py-1 text-xs"
+                      disabled={savingAccount}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveAccount}
+                      className="btn-primary px-3 py-1 text-xs"
+                      disabled={savingAccount}
+                    >
+                      {savingAccount ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {vendorData.vendor_account.map((account) => (
+                    <div
+                      key={account.id || `${account.vendor_id}-${account.account_number}`}
+                      className="flex items-center justify-between rounded-lg bg-gray-50 p-3"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{account.account_number}</p>
+                        <p className="text-xs text-gray-600">
+                          {account.service}
+                          {account.property?.name && (
+                              <span> • Primary: {account.property.name}</span>
+                          )}
+                            {(account.additional_property_ids || []).map((id) => (
+                              <span key={id}> • {properties.find((property) => property.id === id)?.name || "Property unavailable"}</span>
+                            ))}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => startEditingAccount(account)}
+                        className="link text-xs whitespace-nowrap ml-2"
+                        disabled={isSubmitting}
+                      >
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {accountError && (
+            <p role="alert" className="alert-error">{accountError}</p>
           )}
 
           {error && (
@@ -312,14 +589,14 @@ function VendorForm({
             <button
               type="button"
               onClick={onCancel}
-              disabled={isSubmitting}
+              disabled={isSubmitting || savingAccount}
               className="btn-secondary px-4 py-2 text-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || savingAccount || Boolean(editingAccountId)}
               className="btn-primary px-5 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting

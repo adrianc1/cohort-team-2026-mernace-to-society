@@ -47,6 +47,7 @@ export default {
 					payment_type,
 					status,
 					property_id,
+					additional_property_ids,
 					vendor_id,
 					property(name)
 				)
@@ -69,6 +70,30 @@ export default {
 		}
 
 		const { vendor_account: accounts = [], ...vendor } = data;
-		return Response.json({ vendor, accounts });
+		const propertyIds = [...new Set(
+			accounts.flatMap((account) => account.additional_property_ids),
+		)];
+		let properties = [];
+		if (propertyIds.length > 0) {
+			const { data: additionalProperties, error: propertyError } = await supabase
+				.from("property")
+				.select("id, name")
+				.in("id", propertyIds);
+			if (propertyError) {
+				return Response.json({ error: propertyError.message }, { status: 500 });
+			}
+			properties = additionalProperties;
+		}
+		const propertyNames = new Map(properties.map((property) => [property.id, property.name]));
+		return Response.json({
+			vendor,
+			accounts: accounts.map((account) => ({
+				...account,
+				additional_properties: account.additional_property_ids.map((id) => ({
+					id,
+					name: propertyNames.get(id) ?? null,
+				})),
+			})),
+		});
 	}),
 };
