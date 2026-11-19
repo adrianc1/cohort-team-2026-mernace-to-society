@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../utils/supabase";
 import FinishBillPanel from "../components/FinishBillPanel";
@@ -15,8 +15,18 @@ function UploadBillPage() {
   // { message, billId } when this file or invoice was already entered
   const [duplicate, setDuplicate] = useState(null);
 
+  const resultsRef = useRef(null);
+
   const extracted = bill?.extracted_data ?? null;
   const needsFixing = bill && bill.status !== "pending";
+  const hasResult = Boolean(isProcessing || bill || processError || duplicate);
+
+  // The results card is below the upload card, often out of view
+  useEffect(() => {
+    if (isProcessing) {
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [isProcessing]);
 
   function resetBill() {
     setBill(null);
@@ -57,7 +67,7 @@ function UploadBillPage() {
   }
 
   return (
-    <>
+    <div className="mx-auto max-w-3xl">
       <section className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="page-title">Upload a bill</h1>
@@ -72,7 +82,8 @@ function UploadBillPage() {
         </Link>
       </section>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {/* Same width as the manual entry page; results stack under the upload */}
+      <div className="mt-6 grid grid-cols-1 gap-6">
         <section className="card flex min-h-[300px] flex-col items-center">
           <h2 className="text-lg font-bold">Document Upload</h2>
           <p className="mt-1 text-sm text-gray-600">
@@ -86,82 +97,78 @@ function UploadBillPage() {
           />
         </section>
 
-        <section className="card">
-          <h2 className="text-lg font-bold">Bill details</h2>
+        {hasResult && (
+          <section ref={resultsRef} className="card scroll-mt-4">
+            <h2 className="text-lg font-bold">Bill details</h2>
 
-          {!bill && !isProcessing && !processError && !duplicate && (
-            <p className="mt-1 text-sm text-gray-600">
-              Upload a file to get started.
-            </p>
-          )}
-
-          {isProcessing && (
-            <p role="status" className="mt-4 text-sm text-gray-600">
-              Reading and saving bill...
-            </p>
-          )}
-
-          {processError && (
-            <p role="alert" className="alert-error mt-4">
-              {processError}
-            </p>
-          )}
-
-          {duplicate && (
-            <div role="alert" className="alert-error mt-4">
-              <p className="font-semibold">{duplicate.message}</p>
-              <p className="mt-1 text-sm text-gray-600">
-                Nothing new was saved.{" "}
-                {duplicate.billId && (
-                  <Link to={`/bills/${duplicate.billId}`} className="link">
-                    View the existing bill
-                  </Link>
-                )}
+            {isProcessing && (
+              <p role="status" className="mt-4 text-sm text-gray-600">
+                Reading and saving bill...
               </p>
-            </div>
-          )}
+            )}
 
-          {bill?.status === "pending" && (
-            <div role="status" className="alert-success mt-4">
-              <p className="font-semibold">Sent for approval</p>
-              <p className="mt-1 text-sm text-gray-700">
-                {[
-                  extracted?.vendor_name,
-                  bill.invoice_number && `Invoice ${bill.invoice_number}`,
-                  formatCurrency(bill.amount),
-                  bill.due_date && `due ${formatDate(bill.due_date)}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+            {processError && (
+              <p role="alert" className="alert-error mt-4">
+                {processError}
               </p>
-              <Link to={`/bills/${bill.id}`} className="link mt-3 inline-block">
-                View bill
-              </Link>
-            </div>
-          )}
+            )}
 
-          {/* process-bill already knows the vendor, so pass it on. Saving
-					    moves the bill to pending, which swaps this for the box above. */}
-          {needsFixing && (
-            <>
-              <FinishBillPanel
-                key={bill.id}
-                bill={bill}
-                vendorId={vendorId}
-                onSaved={setBill}
-              />
-              <p className="mt-4 text-sm text-gray-600">
-                Need to stop? It's saved.{" "}
-                <Link to={`/bills/${bill.id}`} className="link">
-                  Finish it later from the bill's page
+            {duplicate && (
+              <div role="alert" className="alert-error mt-4">
+                <p className="font-semibold">{duplicate.message}</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  Nothing new was saved.{" "}
+                  {duplicate.billId && (
+                    <Link to={`/bills/${duplicate.billId}`} className="link">
+                      View the existing bill
+                    </Link>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {bill?.status === "pending" && (
+              <div role="status" className="alert-success mt-4">
+                <p className="font-semibold">Sent for approval</p>
+                <p className="mt-1 text-sm text-gray-700">
+                  {[
+                    extracted?.vendor_name,
+                    bill.invoice_number && `Invoice ${bill.invoice_number}`,
+                    formatCurrency(bill.amount),
+                    bill.due_date && `due ${formatDate(bill.due_date)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+                <Link to={`/bills/${bill.id}`} className="link mt-3 inline-block">
+                  View bill
                 </Link>
-                .
-              </p>
-            </>
-          )}
-        </section>
+              </div>
+            )}
+
+            {/* process-bill already knows the vendor, so pass it on. Saving
+  					    moves the bill to pending, which swaps this for the box above. */}
+            {needsFixing && (
+              <>
+                <FinishBillPanel
+                  key={bill.id}
+                  bill={bill}
+                  vendorId={vendorId}
+                  onSaved={setBill}
+                />
+                <p className="mt-4 text-sm text-gray-600">
+                  Need to stop? It's saved.{" "}
+                  <Link to={`/bills/${bill.id}`} className="link">
+                    Finish it later from the bill's page
+                  </Link>
+                  .
+                </p>
+              </>
+            )}
+          </section>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 
