@@ -53,7 +53,8 @@ function billToFormData(bill) {
 }
 
 // Pass `bill` to edit an existing pending bill; leave it out to create a new one.
-// onSaved runs after a successful edit; onCancel shows a Cancel button.
+// onSaved runs with the saved bill after an edit or create; without it, a create
+// shows a success message and clears the form. onCancel shows a Cancel button.
 // source: 'upload' when the bill came from the Upload Bill page; only used when creating
 function BillDetailsForm({
   bill,
@@ -286,7 +287,7 @@ function BillDetailsForm({
         );
       }
 
-      if (isEditing) {
+      if (isEditing || onSaved) {
         onSaved?.(data?.data);
         return;
       }
