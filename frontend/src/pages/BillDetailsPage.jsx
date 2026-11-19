@@ -20,6 +20,7 @@ function BillDetailsPage() {
   const { bill, loading, error, fetchBillDetails } = useBillDetails();
   const [paymentRecord, setPaymentRecord] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [auditError, setAuditError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showEditForm, setShowEditForm] = useState(false);
   const [signedInvoiceUrl, setSignedInvoiceUrl] = useState(null);
@@ -39,13 +40,27 @@ function BillDetailsPage() {
   }, []);
 
   const fetchAuditTrail = useCallback(async (currentBillId) => {
-    const { data } = await supabase
-      .from("audit_trail")
-      .select("*")
-      .eq("bill_id", currentBillId)
-      .order("created_at", { ascending: false });
-    if (data) setAuditLogs(data);
+    const { data, error: auditFetchError } = await supabase.rpc(
+      "get_bill_audit_history",
+      { p_bill_id: currentBillId },
+    );
+
+    if (auditFetchError) {
+      console.error("Failed to load bill audit history:", auditFetchError);
+      setAuditLogs([]);
+      setAuditError("Could not load audit history. Please try again.");
+      return;
+    }
+
+    setAuditError("");
+    setAuditLogs(data || []);
   }, []);
+
+  function formatAuditValue(value) {
+    if (value === null || value === undefined || value === "") return "—";
+    if (typeof value === "object") return JSON.stringify(value);
+    return String(value);
+  }
 
   useEffect(() => {
     fetchBillDetails(billId).then(() => {
@@ -114,25 +129,18 @@ function BillDetailsPage() {
     setApproving(true);
     setActionError("");
     try {
-      const { error: updateError } = await supabase
-        .from("bill")
-        .update({ status: "approved" })
-        .eq("id", bill.id);
-
-      if (updateError) throw updateError;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || bill.created_by;
-
-      await supabase.from("audit_trail").insert({
-        bill_id: bill.id,
-        user_id: userId,
-        action: "bill_approved",
-        from_status: bill.status,
-        to_status: "approved",
-        note: "Approved via frontend review dashboard.",
-        created_at: new Date().toISOString(),
+      const { error } = await supabase.functions.invoke("decide-bill", {
+        body: {
+          billId: bill.id,
+          decision: "approved",
+          note: null,
+        },
       });
+
+      if (error) {
+        const details = await error.context?.json?.().catch(() => null);
+        throw new Error(details?.error || "Failed to approve bill.");
+      }
 
       setSuccessMessage("Bill approved successfully! Ready for automated payment execution.");
       await fetchBillDetails(billId);
@@ -341,16 +349,35 @@ function BillDetailsPage() {
           {/* Audit Trail History Log */}
           <section className="card mt-8">
             <h2 className="section-title mb-4">Audit Trail History</h2>
-            {auditLogs.length > 0 ? (
+            {auditError ? (
+              <p role="alert" className="alert-error">{auditError}</p>
+            ) : auditLogs.length > 0 ? (
               <div className="divide-y divide-gray-100">
                 {auditLogs.map((log) => (
                   <div key={log.id} className="py-3 flex flex-wrap justify-between items-center gap-4 text-sm">
                     <div>
                       <span className="font-semibold uppercase text-xs bg-gray-100 px-2 py-1 rounded text-gray-700 mr-3">{log.action}</span>
-                      <span className="text-gray-800">
-                        Status changed from <strong className="text-gray-600">{log.from_status || "none"}</strong> to <strong className="text-gray-900">{log.to_status}</strong>
+                      <span className="text-gray-600">
+                        {log.actor_name || "Unknown user"}
                       </span>
+                      {log.from_status !== log.to_status && (
+                        <p className="mt-1 text-gray-800">
+                          Status changed from <strong className="text-gray-600">{log.from_status || "none"}</strong> to <strong className="text-gray-900">{log.to_status}</strong>
+                        </p>
+                      )}
                       {log.note && <p className="text-xs text-gray-500 mt-1 italic">Note: {log.note}</p>}
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <dl className="mt-2 space-y-1 text-xs text-gray-600">
+                          {Object.entries(log.details).map(([field, change]) => (
+                            <div key={field}>
+                              <dt className="inline font-semibold">{field}: </dt>
+                              <dd className="inline">
+                                {formatAuditValue(change.old)} → {formatAuditValue(change.new)}
+                              </dd>
+                            </div>
+                          ))}
+                        </dl>
+                      )}
                     </div>
                     <span className="text-xs text-gray-400 font-mono">{new Date(log.created_at).toLocaleString()}</span>
                   </div>
