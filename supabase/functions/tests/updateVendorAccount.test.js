@@ -3,6 +3,7 @@ import { handleUpdateVendorAccount } from '../update-vendor-account/handler.ts';
 
 const accountId = '55555555-5555-4555-8555-555555555555';
 const propertyId = '22222222-2222-4222-8222-222222222222';
+const primaryId = '11111111-1111-4111-8111-111111111111';
 const valid = {
 	accountId,
 	accountNumber: ' 123 ',
@@ -53,6 +54,27 @@ Deno.test('updates account details and additional properties together', async ()
 		service: 'Electric',
 		additional_property_ids: [propertyId],
 	}]);
+});
+
+Deno.test('updates the primary property together with account details', async () => {
+	const supabase = client();
+	const response = await handleUpdateVendorAccount(request({ ...valid, propertyId: primaryId }), supabase);
+	assertEquals(response.status, 200);
+	assertEquals(supabase.updates, [{
+		account_number: '123',
+		service: 'Electric',
+		property_id: primaryId,
+		additional_property_ids: [propertyId],
+	}]);
+});
+
+Deno.test('rejects invalid primary properties and duplicates in additional properties', async () => {
+	for (const propertyIdValue of ['', 'bad', null, propertyId]) {
+		const supabase = client();
+		const response = await handleUpdateVendorAccount(request({ ...valid, propertyId: propertyIdValue }), supabase);
+		assertEquals(response.status, 400);
+		assertEquals(supabase.updates, []);
+	}
 });
 
 Deno.test('accepts valid account IDs regardless of UUID version', async () => {

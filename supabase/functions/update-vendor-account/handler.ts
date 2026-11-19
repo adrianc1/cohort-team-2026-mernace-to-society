@@ -43,12 +43,20 @@ export async function handleUpdateVendorAccount(req: Request, supabase: Supabase
 	}
 	const fields = validateAccountFields(body.accountNumber, body.service);
 	if (!fields.ok) return Response.json({ error: fields.error }, { status: 400 });
-	const properties = validateAdditionalPropertyIds(body.additionalPropertyIds);
+	if (body.propertyId !== undefined &&
+		(typeof body.propertyId !== "string" || !UUID_RE.test(body.propertyId))) {
+		return Response.json({ error: "A valid primary property is required." }, { status: 400 });
+	}
+	const properties = validateAdditionalPropertyIds(body.additionalPropertyIds, body.propertyId);
 	if (!properties.ok) return Response.json({ error: properties.error }, { status: 400 });
 
 	const { data, error } = await supabase
 		.from("vendor_account")
-		.update({ ...fields.value, additional_property_ids: properties.value })
+		.update({
+			...fields.value,
+			...(body.propertyId !== undefined ? { property_id: body.propertyId } : {}),
+			additional_property_ids: properties.value,
+		})
 		.eq("id", body.accountId)
 		.select("id, account_number, service, property_id, additional_property_ids")
 		.maybeSingle();

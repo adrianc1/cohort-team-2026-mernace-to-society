@@ -67,9 +67,10 @@ Supabase PostgreSQL stores the application records. The following tables and fie
 Database changes are maintained in `supabase/migrations/`. Local seed data is in `supabase/seed.sql`.
 
 The account's `property_id` remains the primary property used for manual and
-uploaded bills. Additional properties are informational and do not change bill
-routing. Active managers and administrators can change them; remove an
-additional property from accounts before deleting that property.
+uploaded bills. Active managers and administrators can change it; new bills use
+the updated property, while existing bills retain their own property.
+Additional properties are informational and do not change bill routing. Remove
+an additional property from accounts before deleting that property.
 
 ## Authentication Flow
 

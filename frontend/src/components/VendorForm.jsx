@@ -123,7 +123,7 @@ function VendorForm({
   }
 
   function startEditingAccount(account) {
-    if (!account.id || !account.property_id || !Array.isArray(account.additional_property_ids)) {
+    if (!account.id || !Array.isArray(account.additional_property_ids)) {
       setAccountError("Account details are incomplete. Refresh the vendor list and try again.");
       return;
     }
@@ -131,7 +131,7 @@ function VendorForm({
     setEditingAccountData({
       accountNumber: account.account_number ?? "",
       service: account.service ?? "",
-      primaryPropertyId: account.property_id,
+      primaryPropertyId: account.property_id ?? "",
       additionalPropertyIds: account.additional_property_ids,
     });
     setAccountError("");
@@ -152,6 +152,10 @@ function VendorForm({
       setAccountError("Service type is required");
       return;
     }
+    if (!editingAccountData.primaryPropertyId) {
+      setAccountError("Primary property is required");
+      return;
+    }
     if (propertiesLoading || propertiesError) {
       setAccountError("Load properties before saving the account.");
       return;
@@ -167,6 +171,7 @@ function VendorForm({
             accountId: editingAccountId,
             accountNumber: editingAccountData.accountNumber.trim(),
             service: editingAccountData.service.trim(),
+            propertyId: editingAccountData.primaryPropertyId,
             additionalPropertyIds: editingAccountData.additionalPropertyIds,
           },
         },
@@ -177,6 +182,9 @@ function VendorForm({
         throw new Error(details?.error || error.message || "Failed to save account.");
       }
       if (data?.error) throw new Error(data.error);
+      if (data?.data?.property_id !== editingAccountData.primaryPropertyId) {
+        throw new Error("Account details may have been saved, but the primary property was not updated. The server may need to be updated.");
+      }
       try {
         await onAccountSaved();
       } catch {
@@ -475,11 +483,35 @@ function VendorForm({
                       disabled={savingAccount}
                     />
                   </div>
-                  <p className="text-sm">
-                    Primary property: {properties.find((property) => property.id === editingAccountData.primaryPropertyId)?.name
-                      || vendorData.vendor_account.find((account) => account.id === editingAccountId)?.property?.name
-                      || "Unavailable"}
-                  </p>
+                  <div>
+                    <label htmlFor="edit-account-property" className="label">Primary property</label>
+                    <select
+                      id="edit-account-property"
+                      value={editingAccountData.primaryPropertyId}
+                      onChange={(event) => {
+                        const propertyId = event.target.value;
+                        setEditingAccountData((current) => ({
+                          ...current,
+                          primaryPropertyId: propertyId,
+                          additionalPropertyIds: current.additionalPropertyIds.filter((id) => id !== propertyId),
+                        }));
+                      }}
+                      className={`${inputClassName} select max-w-full`}
+                      disabled={savingAccount || propertiesLoading || Boolean(propertiesError)}
+                    >
+                      <option value="">Select a property</option>
+                      {editingAccountData.primaryPropertyId &&
+                        !properties.some((property) => property.id === editingAccountData.primaryPropertyId) && (
+                          <option value={editingAccountData.primaryPropertyId}>Unavailable property</option>
+                        )}
+                      {properties.map((property) => (
+                        <option key={property.id} value={property.id}>{property.name}</option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-xs text-gray-600">
+                      Changing the primary property affects new bills. Existing bills keep their property.
+                    </p>
+                  </div>
                   <AdditionalProperties
                     properties={properties}
                     primaryPropertyId={editingAccountData.primaryPropertyId}
