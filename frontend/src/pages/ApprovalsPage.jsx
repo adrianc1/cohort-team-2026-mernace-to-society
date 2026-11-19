@@ -559,6 +559,7 @@ function ApprovalsPage() {
                   <StatusBadge key="status" status={selectedBill.status} />,
                 ],
                 ["Review Reason", selectedBill.review_reason],
+                ["Comments", selectedBill.comments],
                 ["Rejection Reason", selectedBill.rejection_reason],
               ].map(([label, value]) => (
                 <div key={label}>

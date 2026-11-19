@@ -34,6 +34,24 @@ Deno.test('normalizes a blank review reason to null', () => {
 	assertEquals(result.value.review_reason, null);
 });
 
+Deno.test('trims comments', () => {
+	const result = validateBill({ ...valid, comments: '  Paid late last month  ' });
+	assertEquals(result.value.comments, 'Paid late last month');
+});
+
+Deno.test('blank comments clear the saved ones', () => {
+	const result = validateBill({ ...valid, comments: '   ' });
+	assertEquals(result.value.comments, null);
+});
+
+Deno.test('leaving comments out keeps the saved ones', () => {
+	assertEquals('comments' in validateBill(valid).value, false);
+});
+
+Deno.test('rejects comments over 2000 characters', () => {
+	assertEquals(validateBill({ ...valid, comments: 'x'.repeat(2001) }).ok, false);
+});
+
 Deno.test('allows due date on the issue date', () => {
 	const result = validateBill({ ...valid, due_date: valid.issue_date });
 	assertEquals(result.ok, true);

@@ -320,13 +320,12 @@ function FinishBillPanel({
         </div>
       )}
 
-      {/* Edits the saved bill through update-bill. review_reason is cleared
-			    so fixing the bill sends it on; it's shown above instead. Typing a
-			    comment keeps it in needs_review. A new key rebuilds the form. */}
+      {/* Edits the saved bill through update-bill, which sends it on for
+			    approval. A new key rebuilds the form. */}
       {canEditRecords && !isLookingUp && (
         <BillDetailsForm
           key={`${bill.id}-${formVersion}`}
-          bill={{ ...bill, review_reason: null }}
+          bill={bill}
           onSaved={onSaved}
         />
       )}
