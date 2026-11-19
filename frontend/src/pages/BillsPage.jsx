@@ -340,7 +340,7 @@ function BillsPage() {
                           <button
                             type="button"
                             onClick={() => setEditingBill(bill)}
-                            className="btn-secondary w-full px-4 py-2 text-xs @table:w-auto"
+                            className="btn-secondary w-full px-4 py-2 text-xs @table:w-auto @table:min-w-28"
                           >
                             Edit
                           </button>
@@ -352,7 +352,7 @@ function BillsPage() {
                             <button
                               type="button"
                               onClick={() => navigate(`/bills/${bill.id}`)}
-                              className="btn-secondary w-full px-4 py-2 text-xs @table:w-auto"
+                              className="btn-secondary w-full px-4 py-2 text-xs @table:w-auto @table:min-w-28"
                             >
                               Finish
                             </button>
@@ -361,7 +361,7 @@ function BillsPage() {
                           <button
                             type="button"
                             onClick={() => navigate(`/bills/${bill.id}`)}
-                            className="btn-primary w-full whitespace-nowrap px-4 py-2 text-xs @table:w-auto bg-emerald-600 hover:bg-emerald-700 text-white"
+                            className="btn-primary w-full whitespace-nowrap px-4 py-2 text-xs @table:w-auto @table:min-w-28 bg-emerald-600 hover:bg-emerald-700 text-white"
                           >
                             Review & Pay
                           </button>
