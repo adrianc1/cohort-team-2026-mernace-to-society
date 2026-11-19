@@ -33,6 +33,15 @@
     margin: 0;
   }
 
+  /* Stop the trackpad "bounce" past the top/bottom of the page, which showed
+     a white strip next to the navy sidebar. Phones keep pull-to-refresh. */
+  @media (min-width: 768px) {
+    html,
+    body {
+      overscroll-behavior-y: none;
+    }
+  }
+
   #root {
     min-height: 100vh;
   }
