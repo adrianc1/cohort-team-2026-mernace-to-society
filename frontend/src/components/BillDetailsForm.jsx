@@ -56,7 +56,7 @@ function billToFormData(bill) {
     invoiceDate: bill.issue_date ?? "",
     dueDate: bill.due_date ?? "",
     billUrl: bill.bill_url ?? "",
-    comments: bill.review_reason ?? "",
+    comments: bill.comments ?? "",
   };
 }
 
@@ -285,7 +285,7 @@ function BillDetailsForm({
         due_date: formData.dueDate,
         vendor_account_id: formData.vendorAccount,
         bill_url: formData.billUrl.trim() || null,
-        review_reason: formData.comments,
+        comments: formData.comments,
       };
 
       const { data, error } = isEditing

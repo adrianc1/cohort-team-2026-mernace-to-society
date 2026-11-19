@@ -10,7 +10,7 @@ export default {
 			supabase
 				.from('bill')
 				.select(
-					'id, invoice_number, issue_date, due_date, amount, status, source, extracted_vendor_name, review_reason, rejection_reason, approved_on, created_at, property(name), vendor_account(service, vendor(name))',
+					'id, invoice_number, issue_date, due_date, amount, status, source, extracted_vendor_name, review_reason, comments, rejection_reason, approved_on, created_at, property(name), vendor_account(service, vendor(name))',
 				)
 				.order('due_date', { ascending: true }),
 			supabase.rpc('get_approval_history'),

@@ -105,46 +105,28 @@ async function runAutomation(billId) {
       const paymentResult = await executeBillPayment(page, stagehand, bill, supabase);
 
       if (paymentResult.success) {
-        const { error: billUpdateError } = await supabase
-          .from("bill")
-          .update({ 
-            status: "paid", 
-            paid_on: new Date().toISOString().split("T")[0] 
-          })
-          .eq("id", bill.id);
+        const methodUsed = paymentResult.methodUsed || "card";
+        const confirmationNumber =
+          paymentResult.confirmationNumber || `CONF-${Date.now()}`;
+        const { error: finalizationError } = await supabase.rpc(
+          "mark_bill_paid_with_audit",
+          {
+            p_bill_id: bill.id,
+            p_method: methodUsed,
+            p_confirmation_number: confirmationNumber,
+            p_receipt_url: paymentResult.receiptUrl,
+          },
+        );
 
-        if (billUpdateError) {
-          console.error("Failed to update bill status in Supabase:", billUpdateError.message);
+        if (finalizationError) {
+          console.error(
+            "Failed to save payment, bill status, and audit history in Supabase:",
+            finalizationError.message,
+          );
+          throw new Error("Payment succeeded, but database finalization failed.");
         }
 
-        const { error: paymentInsertError } = await supabase
-          .from("payment")
-          .insert({
-            bill_id: bill.id,
-            amount: bill.amount,
-            status: "success",
-            method: [paymentResult.methodUsed || "card"],
-            confirmation_number: paymentResult.confirmationNumber || `CONF-${Date.now()}`,
-            receipt_url: paymentResult.receiptUrl,
-            failure_reason: "",
-            attempted_by: bill.created_by,
-            attempted_at: new Date().toISOString(),
-          });
-
-        if (paymentInsertError) {
-          console.error("Failed to save payment record:", paymentInsertError.message);
-        } else {
-          console.log("Payment record and receipt path successfully saved to Supabase DB!");
-        }
-
-        await updateAudit({
-          billId: bill.id,
-          action: "bill_paid",
-          fromStatus: "approved",
-          toStatus: "paid",
-          note: `Successfully paid $${bill.amount} using ${paymentResult.methodUsed}.`,
-          userId: bill.created_by,
-        });
+        console.log("Payment record, bill status, and audit history saved atomically.");
       }
     } else {
       console.log(`\nBill status is '${bill.status}'. Stopping before payment execution.`);
