@@ -1,3 +1,5 @@
+import { validateAdditionalPropertyIds } from "./validateVendorAccount.js";
+
 export function validateVendor(body) {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "Body must be an object" };
@@ -13,6 +15,7 @@ export function validateVendor(body) {
     account_number,
     service,
     property_id,
+    additional_property_ids,
   } = body;
 
   if (typeof name !== "string" || name.trim().length === 0) {
@@ -105,7 +108,10 @@ export function validateVendor(body) {
 
   const hasAccountInformation = [account_number, service, property_id].some(
     (value) => value !== undefined && value !== null && value !== "",
-  );
+  ) || (Array.isArray(additional_property_ids) && additional_property_ids.length > 0);
+  if (additional_property_ids !== undefined && !Array.isArray(additional_property_ids)) {
+    return { ok: false, error: "Additional properties must be valid property IDs" };
+  }
   let account = null;
 
   if (hasAccountInformation) {
@@ -131,6 +137,11 @@ export function validateVendor(body) {
       service: service.trim(),
       property_id,
     };
+    if (additional_property_ids !== undefined) {
+      const additional = validateAdditionalPropertyIds(additional_property_ids, property_id);
+      if (!additional.ok) return additional;
+      account.additional_property_ids = additional.value;
+    }
   }
 
   return {

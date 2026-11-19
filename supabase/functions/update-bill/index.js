@@ -74,6 +74,8 @@ export default {
 			p_review_reason: result.value.review_reason,
 			p_bill_url: result.value.bill_url ?? null,
 			p_update_bill_url: Object.hasOwn(result.value, 'bill_url'),
+			p_comments: result.value.comments ?? null,
+			p_update_comments: Object.hasOwn(result.value, 'comments'),
 		});
 
 		if (error?.code === UNIQUE_VIOLATION) {

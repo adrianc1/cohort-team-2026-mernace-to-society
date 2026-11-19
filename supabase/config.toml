@@ -489,6 +489,11 @@ enabled = true
 verify_jwt = true
 entrypoint = "./functions/create-vendor-account/index.js"
 
+[functions.update-vendor-account]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/update-vendor-account/index.ts"
+
 [functions.delete-vendor]
 enabled = true
 verify_jwt = true

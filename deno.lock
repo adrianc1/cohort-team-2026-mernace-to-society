@@ -6,6 +6,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@supabase/server@1": "1.9.2",
     "npm:@supabase/middleware@1": "1.0.0",
+    "npm:@supabase/supabase-js@2": "2.118.0",
     "npm:@supabase/supabase-js@^2.114.0": "2.118.0",
     "npm:@supabase/supabase-js@^2.118.0": "2.118.0",
     "npm:jose@^6.2.0": "6.2.15"

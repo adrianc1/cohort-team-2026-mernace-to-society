@@ -1,6 +1,8 @@
-begin
+begin;
+
 alter table public.vendor_account
-	add column additional_property_ids uuid[] not null default '{}'
+	add column additional_property_ids uuid[] not null default '{}';
+
 do $$
 begin
 	if exists (
@@ -12,7 +14,8 @@ begin
 		raise exception 'A vendor account has linked properties but no primary property.';
 	end if;
 end;
-$$
+$$;
+
 update public.vendor_account as account
 set additional_property_ids = links.property_ids
 from (
@@ -23,7 +26,8 @@ from (
 	where link.property_id is distinct from account.property_id
 	group by link.vendor_account_id
 ) as links
-where account.id = links.vendor_account_id
+where account.id = links.vendor_account_id;
+
 create function public.validate_vendor_account_additional_properties()
 returns trigger
 language plpgsql
@@ -73,13 +77,16 @@ begin
 	end if;
 	return new;
 end;
-$$
+$$;
+
 revoke all on function public.validate_vendor_account_additional_properties()
-	from public, anon, authenticated
+	from public, anon, authenticated;
+
 create trigger validate_vendor_account_additional_properties
 	before insert or update of property_id, additional_property_ids
 	on public.vendor_account
-	for each row execute function public.validate_vendor_account_additional_properties()
+	for each row execute function public.validate_vendor_account_additional_properties();
+
 create function public.prevent_deleting_additional_vendor_property()
 returns trigger
 language plpgsql
@@ -96,10 +103,13 @@ begin
 	end if;
 	return old;
 end;
-$$
+$$;
+
 revoke all on function public.prevent_deleting_additional_vendor_property()
-	from public, anon, authenticated
+	from public, anon, authenticated;
+
 create trigger prevent_deleting_additional_vendor_property
 	before delete on public.property
-	for each row execute function public.prevent_deleting_additional_vendor_property()
-commit
+	for each row execute function public.prevent_deleting_additional_vendor_property();
+
+commit;

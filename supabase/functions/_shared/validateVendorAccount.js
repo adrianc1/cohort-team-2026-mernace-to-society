@@ -3,6 +3,33 @@ const UUID_RE =
 
 const PAYMENT_TYPES = ['ach', 'card', 'check'];
 
+export function validateAdditionalPropertyIds(value, primaryPropertyId = null) {
+	if (!Array.isArray(value) || value.some((id) => typeof id !== 'string' || !UUID_RE.test(id))) {
+		return { ok: false, error: 'Additional properties must be valid property IDs' };
+	}
+	const ids = value.map((id) => id.toLowerCase());
+	if (new Set(ids).size !== ids.length || ids.includes(primaryPropertyId?.toLowerCase())) {
+		return { ok: false, error: 'Additional properties must be unique and different from the primary property' };
+	}
+	return { ok: true, value: ids };
+}
+
+export function validateAccountFields(account_number, service) {
+	if (typeof account_number !== 'string' || !/[a-z0-9]/i.test(account_number)) {
+		return { ok: false, error: 'Account number is required' };
+	}
+	if (account_number.trim().length > 50) {
+		return { ok: false, error: 'Account number must be 50 characters or less' };
+	}
+	if (typeof service !== 'string' || service.trim().length === 0) {
+		return { ok: false, error: 'Service is required' };
+	}
+	if (service.trim().length > 50) {
+		return { ok: false, error: 'Service must be 50 characters or less' };
+	}
+	return { ok: true, value: { account_number: account_number.trim(), service: service.trim() } };
+}
+
 export function validateVendorAccount(body) {
 	if (typeof body !== 'object' || body === null || Array.isArray(body)) {
 		return { ok: false, error: 'Body must be an object' };
@@ -18,20 +45,13 @@ export function validateVendorAccount(body) {
 		return { ok: false, error: 'Property is required' };
 	}
 
-	// match-bill compares letters and digits only, so an account number needs at least one
-	if (typeof account_number !== 'string' || !/[a-z0-9]/i.test(account_number)) {
-		return { ok: false, error: 'Account number is required' };
-	}
-	if (account_number.trim().length > 50) {
-		return { ok: false, error: 'Account number must be 50 characters or less' };
-	}
+	const fields = validateAccountFields(account_number, service);
+	if (!fields.ok) return fields;
 
-	if (typeof service !== 'string' || service.trim().length === 0) {
-		return { ok: false, error: 'Service is required' };
-	}
-	if (service.trim().length > 50) {
-		return { ok: false, error: 'Service must be 50 characters or less' };
-	}
+	const additional = body.additional_property_ids === undefined
+		? null
+		: validateAdditionalPropertyIds(body.additional_property_ids, property_id);
+	if (additional && !additional.ok) return additional;
 
 	// payment_type is optional; missing or empty string becomes null
 	const paymentType =
@@ -47,8 +67,8 @@ export function validateVendorAccount(body) {
 		value: {
 			vendor_id,
 			property_id,
-			account_number: account_number.trim(),
-			service: service.trim(),
+			...fields.value,
+			...(additional ? { additional_property_ids: additional.value } : {}),
 			payment_type: paymentType,
 		},
 	};
