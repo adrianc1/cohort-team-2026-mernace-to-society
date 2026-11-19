@@ -12,6 +12,14 @@ const emptyVendor = {
   property_id: "",
 };
 
+const serviceTypes = [
+  "Electric",
+  "Water",
+  "Disposal",
+  "Internet",
+  "Property Services",
+];
+
 const inputClassName = "input";
 
 function VendorForm({
@@ -59,6 +67,8 @@ function VendorForm({
       property_id: initialValues?.property_id || "",
     };
   });
+
+  const [showCustomService, setShowCustomService] = useState(false);
 
   useEffect(() => {
     fetchProperties().catch(() => {});
@@ -240,16 +250,60 @@ function VendorForm({
                 <label htmlFor="vendor-service" className="label">
                   Service Type
                 </label>
-                <input
-                  id="vendor-service"
-                  name="service"
-                  type="text"
-                  value={formData.service}
-                  onChange={handleChange}
-                  className={inputClassName}
-                  placeholder="Electric"
-                  required={accountRequired}
-                />
+                {!showCustomService ? (
+                  <>
+                    <select
+                      id="vendor-service"
+                      name="service"
+                      value={formData.service}
+                      onChange={(e) => {
+                        if (e.target.value === "__custom__") {
+                          setShowCustomService(true);
+                          setFormData((current) => ({ ...current, service: "" }));
+                        } else {
+                          handleChange(e);
+                        }
+                      }}
+                      className={`${inputClassName} select`}
+                      required={accountRequired && !showCustomService}
+                    >
+                      <option value="">
+                        {accountRequired ? "Select a service type" : "Select a service type (optional)"}
+                      </option>
+                      {serviceTypes.map((type) => (
+                        <option key={type} value={type}>
+                          {type}
+                        </option>
+                      ))}
+                      <option value="__custom__" className="border-t border-gray-300">
+                        + Add custom service type
+                      </option>
+                    </select>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      name="service"
+                      value={formData.service}
+                      onChange={handleChange}
+                      className={inputClassName}
+                      placeholder="Enter custom service type"
+                      autoFocus
+                      required={accountRequired}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCustomService(false);
+                        setFormData((current) => ({ ...current, service: "" }));
+                      }}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Back to list
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

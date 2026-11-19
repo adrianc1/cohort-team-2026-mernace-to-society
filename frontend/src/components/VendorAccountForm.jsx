@@ -3,6 +3,14 @@ import { supabase } from "../../utils/supabase";
 
 const NEW_VENDOR_OPTION = "__new_vendor__";
 
+const serviceTypes = [
+  "Electric",
+  "Water",
+  "Disposal",
+  "Internet",
+  "Property Services",
+];
+
 const inputClassName = "input";
 
 function VendorAccountForm({
@@ -14,6 +22,7 @@ function VendorAccountForm({
 }) {
   const [vendors, setVendors] = useState([]);
   const [loadError, setLoadError] = useState("");
+  const [showCustomService, setShowCustomService] = useState(false);
   const [formData, setFormData] = useState({
     vendorId: "",
     vendorName: "",
@@ -155,17 +164,57 @@ function VendorAccountForm({
               <label htmlFor="account-service" className="label">
                 Service Type
               </label>
-              <input
-                id="account-service"
-                name="service"
-                type="text"
-                value={formData.service}
-                onChange={handleChange}
-                className={inputClassName}
-                placeholder="Electric"
-                maxLength={50}
-                required
-              />
+              {!showCustomService ? (
+                <>
+                  <select
+                    id="account-service"
+                    name="service"
+                    value={formData.service}
+                    onChange={(e) => {
+                      if (e.target.value === "__custom__") {
+                        setShowCustomService(true);
+                        setFormData((current) => ({ ...current, service: "" }));
+                      } else {
+                        handleChange(e);
+                      }
+                    }}
+                    className={`${inputClassName} select`}
+                    required
+                  >
+                    <option value="">Select a service type</option>
+                    {serviceTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                    <option value="__custom__">+ Add new service type</option>
+                  </select>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    name="service"
+                    value={formData.service}
+                    onChange={handleChange}
+                    className={inputClassName}
+                    placeholder="Enter new service type"
+                    maxLength={50}
+                    autoFocus
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCustomService(false);
+                      setFormData((current) => ({ ...current, service: "" }));
+                    }}
+                    className="text-xs text-blue-600 hover:underline"
+                  >
+                    Back to list
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
