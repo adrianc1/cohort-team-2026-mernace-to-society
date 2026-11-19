@@ -71,6 +71,8 @@ uploaded bills. Active managers and administrators can change it; new bills use
 the updated property, while existing bills retain their own property.
 Additional properties are informational and do not change bill routing. Remove
 an additional property from accounts before deleting that property.
+Editing a bill preserves its existing property; an unfinished bill without a
+property is assigned its selected account's primary property when completed.
 
 ## Authentication Flow
 

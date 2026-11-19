@@ -22,6 +22,14 @@ function fetchVendorAccounts(propertyId) {
     .eq("property_id", propertyId);
 }
 
+function fetchVendorAccount(accountId) {
+  return supabase
+    .from("vendor_account")
+    .select("id, account_number, service, vendor_id, vendor(name)")
+    .eq("id", accountId)
+    .maybeSingle();
+}
+
 // property and vendorAccount hold ids; the dropdowns show names
 const initialFormData = {
   property: "",
@@ -115,14 +123,26 @@ function BillDetailsForm({
         setErrorMessage("Could not load vendor accounts.");
         return;
       }
-      setVendorAccounts(data);
+      if (bill?.property_id === formData.property && bill?.vendor_account_id &&
+          !data.some((account) => account.id === bill.vendor_account_id)) {
+        const { data: originalAccount, error: accountError } = await fetchVendorAccount(bill.vendor_account_id);
+        if (ignore) return;
+        if (accountError || !originalAccount) {
+          setErrorMessage("Could not load the bill's original vendor account.");
+          setVendorAccounts(data);
+          return;
+        }
+        setVendorAccounts([...data, originalAccount]);
+      } else {
+        setVendorAccounts(data);
+      }
     }
 
     loadVendorAccounts();
     return () => {
       ignore = true;
     };
-  }, [formData.property]);
+  }, [formData.property, bill?.property_id, bill?.vendor_account_id]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -257,7 +277,7 @@ function BillDetailsForm({
 
     try {
       // Only send fields the bill table has columns for. Approver stays in
-      // the UI until the table supports it. The edge function looks up property_id from the vendor account.
+      // the UI until the table supports it.
       const billFields = {
         invoice_number: formData.invoiceNumber,
         amount: Number(formData.amount),
@@ -317,6 +337,7 @@ function BillDetailsForm({
             value={formData.property}
             onChange={handleChange}
             className={`${inputClassName} select`}
+            disabled={isEditing && Boolean(bill.property_id)}
             required
           >
             <option value="" disabled>
@@ -331,6 +352,11 @@ function BillDetailsForm({
               <option value={ADD_PROPERTY_OPTION}>+ Add new property</option>
             )}
           </select>
+          {isEditing && bill.property_id && (
+            <p className="mt-1 text-xs text-gray-600">
+              This bill keeps its original property.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

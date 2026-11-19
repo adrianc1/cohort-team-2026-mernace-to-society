@@ -1,0 +1,100 @@
+import { validateBill } from '../_shared/validateBill.js';
+
+const UUID_RE =
+	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const UNIQUE_VIOLATION = '23505';
+
+export async function handleUpdateBill(req, supabase) {
+		if (req.method !== 'PATCH') {
+			return Response.json({ error: 'Method not allowed' }, { status: 405 });
+		}
+
+		let body;
+		try {
+			body = await req.json();
+		} catch {
+			return Response.json({ error: 'Invalid JSON' }, { status: 400 });
+		}
+
+		if (typeof body?.id !== 'string' || !UUID_RE.test(body.id)) {
+			return Response.json({ error: 'Bill id is required' }, { status: 400 });
+		}
+
+		// Same rules as creating a bill, so an edit can't sneak in bad data
+		const result = validateBill(body);
+		if (!result.ok) {
+			return Response.json({ error: result.error }, { status: 400 });
+		}
+
+		const { data: account, error: accountError } = await supabase
+			.from('vendor_account')
+			.select('property_id')
+			.eq('id', result.value.vendor_account_id)
+			.maybeSingle();
+
+		if (accountError) {
+			return Response.json({ error: accountError.message }, { status: 500 });
+		}
+		if (!account) {
+			return Response.json(
+				{ error: 'Vendor account not found' },
+				{ status: 400 },
+			);
+		}
+
+		const { data: bill, error: billError } = await supabase
+			.from('bill')
+			.select('property_id')
+			.eq('id', body.id)
+			.in('status', ['pending', 'needs_review', 'extraction_failed'])
+			.maybeSingle();
+		if (billError) {
+			return Response.json({ error: billError.message }, { status: 500 });
+		}
+		if (!bill) {
+			return Response.json({ error: 'Bill was not found or is no longer pending' }, { status: 409 });
+		}
+		if (bill.property_id === null && !account.property_id) {
+			return Response.json({ error: 'Vendor account has no primary property' }, { status: 400 });
+		}
+
+		// Only bills awaiting review can be edited. Filtering on status here means
+		// an approved/rejected bill is left untouched if the page loaded earlier.
+		// status, approved_by, created_by and source are never taken from the body.
+		let query = supabase
+			.from('bill')
+			.update({
+				...result.value,
+				...(bill.property_id === null ? { property_id: account.property_id } : {}),
+				status: result.value.review_reason ? 'needs_review' : 'pending',
+			})
+			.eq('id', body.id)
+			// extraction_failed: the AI couldn't read it, so a person fills it in here
+			.in('status', ['pending', 'needs_review', 'extraction_failed']);
+		if (bill.property_id === null) {
+			query = query.is('property_id', null);
+		}
+		const { data, error } = await query.select()
+			.maybeSingle();
+
+		if (error?.code === UNIQUE_VIOLATION) {
+			return Response.json(
+				{
+					error: `Invoice ${result.value.invoice_number} was already entered for this account.`,
+				},
+				{ status: 409 },
+			);
+		}
+		if (error) {
+			return Response.json({ error: error.message }, { status: 500 });
+		}
+		if (!data) {
+			return Response.json(
+				{ error: 'Bill changed, was not found, or is no longer pending' },
+				{ status: 409 },
+			);
+		}
+
+		return Response.json({ data });
+}
