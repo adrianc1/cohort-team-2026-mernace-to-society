@@ -33,7 +33,22 @@ export function validateBill(body) {
 		vendor_account_id,
 		review_reason,
 		bill_url,
+		comments,
 	} = body;
+
+	// Same rule as bill_url: leaving comments out keeps the saved ones
+	let normalizedComments;
+	if (comments === null || (typeof comments === 'string' && comments.trim() === '')) {
+		normalizedComments = null;
+	} else if (comments !== undefined) {
+		if (typeof comments !== 'string') {
+			return { ok: false, error: 'Comments must be text' };
+		}
+		if (comments.trim().length > 2000) {
+			return { ok: false, error: 'Comments must be 2000 characters or less' };
+		}
+		normalizedComments = comments.trim();
+	}
 
 	if (review_reason != null && typeof review_reason !== 'string') {
 		return { ok: false, error: 'Review reason must be text' };
@@ -118,6 +133,7 @@ export function validateBill(body) {
 			vendor_account_id,
 			review_reason: normalizedReviewReason || null,
 			...(billUrl !== undefined && { bill_url: billUrl }),
+			...(normalizedComments !== undefined && { comments: normalizedComments }),
 		},
 	};
 }

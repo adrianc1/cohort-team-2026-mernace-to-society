@@ -294,6 +294,12 @@ function BillDetailsPage() {
                 <div key={label}><p className="text-sm text-gray-500">{label}</p><p className="mt-1 font-semibold">{value || "—"}</p></div>
               ))}
             </div>
+            {bill.comments && (
+              <div className="mt-6 border-t border-secondary pt-4">
+                <p className="text-sm text-gray-500">Comments</p>
+                <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">{bill.comments}</p>
+              </div>
+            )}
           </section>
 
           {/* Original Invoice PDF Viewer */}
