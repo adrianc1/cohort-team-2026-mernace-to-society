@@ -13,7 +13,7 @@ const statusStyles = {
 function StatusBadge({ status }) {
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
+      className={`inline-flex min-w-28 justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${
         statusStyles[status] ?? "bg-secondary text-black"
       }`}
     >
