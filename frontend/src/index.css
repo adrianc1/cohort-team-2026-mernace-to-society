@@ -121,7 +121,7 @@
      Wrap a table in .table-card. Below --container-table each row is a card
      with labels; at --container-table and up it's a normal table. */
   .table-card {
-    @apply @container overflow-hidden @table:overflow-x-auto;
+    @apply @container overflow-x-auto;
   }
 
   .stacked-table {
@@ -145,7 +145,7 @@
   }
 
   .stacked-cell {
-    @apply flex justify-between gap-4 py-1 @table:table-cell @table:px-3 @table:py-3;
+    @apply flex justify-between gap-4 py-1 [overflow-wrap:anywhere] @table:table-cell @table:px-3 @table:py-3;
   }
 
   /* The label shown beside each value on cards; hidden in table view */
