@@ -46,7 +46,9 @@ Also on the team: **Audrey Clark**.
   <a href="https://supabase.com/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/supabase/supabase-original.svg" alt="Supabase" width="64" /></a>&nbsp;
   <a href="https://www.postgresql.org/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="64" /></a>&nbsp;
   <a href="https://deno.com/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/denojs/denojs-original.svg" alt="Deno" width="64" /></a>&nbsp;
-  <a href="https://nodejs.org/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg" alt="Node.js" width="64" /></a>
+  <a href="https://nodejs.org/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg" alt="Node.js" width="64" /></a>&nbsp;
+  <a href="https://openrouter.ai/"><img src="https://cdn.simpleicons.org/openrouter/6366F1" alt="OpenRouter" width="64" /></a>&nbsp;
+  <a href="https://www.stagehand.dev/"><img src="https://www.stagehand.dev/brand/Stagehand-logomark-color.svg" alt="Stagehand" width="64" /></a>
 </p>
 
 | Area | Technologies and documentation |
