@@ -165,6 +165,10 @@ After applying migrations to an isolated test database, the transactional
 signup test can be run with
 `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/signup_pending_approval.sql`.
 
+### User Roles
+
+![Staff, manager, and admin roles and their permissions](docs/images/user-roles.png)
+
 ## Key Features
 
 ### Property and vendor management
