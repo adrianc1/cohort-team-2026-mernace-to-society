@@ -1,5 +1,7 @@
 # Billio
 
+![Billio landing page](docs/images/landing-page.png)
+
 > **Problem:** Property management teams need to track bills across many properties. Bill intake, vendor matching, and approval decisions can otherwise become manual and fragmented.
 >
 > **Solution:** Billio brings property and vendor records, bill entry and upload, AI-assisted extraction, and approval workflows into one application.
@@ -7,36 +9,76 @@
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Architecture Overview](#architecture-overview)
-3. [Database Schema](#database-schema)
-4. [Authentication Flow](#authentication-flow)
-5. [Key Features](#key-features)
-6. [API Structure](#api-structure)
-7. [Component Structure](#component-structure)
-8. [Data Flow](#data-flow)
-9. [Deployment](#deployment)
-10. [Git Workflow](#git-workflow)
-11. [Color Branding](#color-branding)
-12. [Run Locally](#run-locally)
-13. [Useful Commands](#useful-commands)
-14. [Team](#team)
+2. [Team](#team)
+3. [Technologies Used](#technologies-used)
+4. [Architecture Overview](#architecture-overview)
+5. [Database Schema](#database-schema)
+6. [Authentication Flow](#authentication-flow)
+7. [Key Features](#key-features)
+8. [API Structure](#api-structure)
+9. [Component Structure](#component-structure)
+10. [Data Flow](#data-flow)
+11. [Deployment](#deployment)
+12. [Git Workflow](#git-workflow)
+13. [Color Branding](#color-branding)
+14. [Useful Commands](#useful-commands)
 
 ## Introduction
 
 Billio is a property bill management application for property management teams. It helps users manage properties, vendors, and vendor accounts, enter or upload bills, review extracted details, and route bills through an approval queue.
 
+## Team
+
+| | | |
+| :---: | :---: | :---: |
+| <img src="docs/images/team/adrian.png" alt="Adrian Crosby" width="160" /><br />**Adrian Crosby** | <img src="docs/images/team/aisha.png" alt="Aisha Umar" width="160" /><br />**Aisha Umar** | <img src="docs/images/team/antonio.jpg" alt="Antonio Reyes" width="160" /><br />**Antonio (Tony) Reyes** |
+| <img src="docs/images/team/arnau.png" alt="Arnau Davis" width="160" /><br />**Arnau Davis** | <img src="docs/images/team/jake.jpeg" alt="Jake Johnson" width="160" /><br />**Jake Johnson** | <img src="docs/images/team/sarah.png" alt="Sarah Al-Said" width="160" /><br />**Sarah Al-Said** |
+
+Also on the team: **Audrey Clark**.
+
+## Technologies Used
+
+<p>
+  <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/javascript/javascript-original.svg" alt="JavaScript" width="64" /></a>&nbsp;
+  <a href="https://react.dev/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg" alt="React" width="64" /></a>&nbsp;
+  <a href="https://vite.dev/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vitejs/vitejs-original.svg" alt="Vite" width="64" /></a>&nbsp;
+  <a href="https://tailwindcss.com/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg" alt="Tailwind CSS" width="64" /></a>&nbsp;
+  <a href="https://supabase.com/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/supabase/supabase-original.svg" alt="Supabase" width="64" /></a>&nbsp;
+  <a href="https://www.postgresql.org/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" alt="PostgreSQL" width="64" /></a>&nbsp;
+  <a href="https://deno.com/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/denojs/denojs-original.svg" alt="Deno" width="64" /></a>&nbsp;
+  <a href="https://nodejs.org/"><img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg" alt="Node.js" width="64" /></a>&nbsp;
+  <a href="https://openrouter.ai/"><img src="https://cdn.simpleicons.org/openrouter/6366F1" alt="OpenRouter" width="64" /></a>&nbsp;
+  <a href="https://www.stagehand.dev/"><img src="https://www.stagehand.dev/brand/Stagehand-logomark-color.svg" alt="Stagehand" width="64" /></a>
+</p>
+
+| Area | Technologies and documentation |
+| --- | --- |
+| Frontend | [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript), [React](https://react.dev/), [Vite](https://vite.dev/), [Tailwind CSS](https://tailwindcss.com/docs) |
+| Backend and data | [Supabase](https://supabase.com/docs) (Auth, Storage, Edge Functions), [PostgreSQL](https://www.postgresql.org/docs/), [Deno](https://docs.deno.com/) |
+| AI-assisted extraction | [OpenRouter](https://openrouter.ai/docs) |
+| Payment automation worker | [Node.js](https://nodejs.org/docs/), [Express](https://expressjs.com/), [Stagehand](https://docs.stagehand.dev/) |
+
 ## Architecture Overview
 
-The frontend is a React application. Supabase provides authentication, PostgreSQL, private file storage, and server-side Edge Functions. Bill document extraction is performed through OpenRouter from an Edge Function.
+The frontend is a React application. Supabase provides authentication, PostgreSQL, file storage, and server-side Edge Functions. An Edge Function uses OpenRouter to extract bill details. A separate worker prototypes browser-based payment automation.
+
+![Billio architecture showing the React app, Supabase, OpenRouter, and the payment automation worker](docs/images/architecture.png)
+
+[View the architecture diagram as a PDF](docs/images/billio-architecture-showcase.pdf). The diagram is an MVP overview.
 
 | Component | Description |
 | --- | --- |
-| Frontend | React application built and served during development by Vite |
+| Frontend | React application built with Vite and deployed on Vercel |
 | Backend | Supabase Edge Functions running on Deno |
 | Database | Supabase PostgreSQL |
 | Authentication | Supabase Auth |
 | File storage | Supabase Storage; bill uploads use the `invoices` bucket |
-| Document extraction | OpenRouter called by the `extract-bill` Edge Function |
+| Document extraction | OpenRouter called by the `process-bill` Edge Function |
+| Payment automation prototype | Node.js/Express bridge and Stagehand worker |
+
+The worker is a prototype, not a production payment service. It can submit payments and uses a service-role key; its bridge has no authentication and permits cross-origin requests. Do not expose it or use real payment credentials. The separate `execute-payment` Edge Function currently creates a simulated confirmation and payment record; it does not execute a vendor-portal payment.
+
+The current payment-method schema includes fields for full card and bank details, including card security codes. Use test data only; the payment implementation is not ready for real financial information or production use.
 
 ### Development tools
 
@@ -44,7 +86,7 @@ The frontend is a React application. Supabase provides authentication, PostgreSQ
 | --- | --- |
 | npm | Frontend dependencies and scripts |
 | ESLint | Frontend linting |
-| Supabase CLI | Local Supabase services, migrations, and function deployment |
+| Supabase CLI | Supabase services, migrations, and function deployment |
 | Jira | Team task planning and issue tracking |
 | Figma | Database schema planning and UI mockups |
 | Discord | Main team communication |
@@ -58,13 +100,16 @@ Supabase PostgreSQL stores the application records. The following tables and fie
 | Table | Examples of fields used by the app | Purpose |
 | --- | --- | --- |
 | `user` | `id`, `name`, `role` | Application user details and approval role |
+| `organization` | `id`, `name`, `street`, `city`, `state`, `zip`, `phone` | Shared organization settings |
 | `property` | `id`, `name`, `status` | Managed properties |
 | `vendor` | `id`, `name`, `status` | Vendor records |
 | `vendor_account` | `id`, `vendor_id`, `property_id`, `additional_property_ids`, `account_number`, `service`, `payment_type`, `status` | Vendor account with a primary property and optional additional properties |
-| `bill` | `id`, `invoice_number`, `amount`, `issue_date`, `due_date`, `status`, `review_reason`, `rejection_reason`, `vendor_account_id`, `property_id`, `created_by`, `approved_by`, `approved_on`, `source` | Bill details and workflow state |
-| `audit_trail` | `bill_id`, `user_id`, `action`, `from_status`, `to_status`, `note`, `created_at` | Approval and rejection history |
+| `bill` | `id`, `invoice_number`, `amount`, `issue_date`, `due_date`, `status`, `review_reason`, `comments`, `vendor_account_id`, `property_id`, `file_path`, `source` | Bill details and workflow state |
+| `audit_trail` | `bill_id`, `user_id`, `action`, `from_status`, `to_status`, `note`, `created_at` | Bill and approval history |
+| `payment` | `bill_id`, `amount`, `status`, `method`, `confirmation_number`, `receipt_url` | Payment record and receipt reference |
+| `payment_method` | `id`, `org_id`, `type`, `name_on_card`, `expiration_date` | Saved payment-method information |
 
-Database changes are maintained in `supabase/migrations/`. Local seed data is in `supabase/seed.sql`.
+Incremental database changes are maintained in `supabase/migrations/`. The original base schema for existing tables such as `vendor`, `property`, `bill`, and `user` is not included in the repository; the migrations alone cannot recreate a fresh database. Obtain a compatible baseline from the project maintainers before setting up an isolated database. `supabase/seed.sql` contains sample properties, vendors, and accounts, but no login user.
 
 The account's `property_id` remains the primary property used for manual and
 uploaded bills. Active managers and administrators can change it; new bills use
@@ -93,18 +138,19 @@ tables and the `invoices` bucket; new tables, views, functions, and buckets must
 also enforce active status. Existing Auth accounts without a matching app
 profile are not backfilled automatically.
 
-Local Supabase configuration enables email confirmation and uses
-`supabase/templates/confirmation.html`. Signup sends a generic message for new
-and existing accounts. The confirmation link opens `/confirm-email`, where the
+Supabase Auth handles email confirmation and password recovery. The repository
+includes the email templates in `supabase/templates/confirmation.html` and
+`supabase/templates/recovery.html`; password recovery uses a six-digit code.
+Signup sends a generic message for new and existing accounts. The confirmation link opens `/confirm-email`, where the
 user must click Confirm email before the app verifies the link. The extra click
 prevents email link scanners from consuming the confirmation token.
 
-The deployed project's Auth settings must be configured separately: enable email
-confirmation, configure production SMTP, add each frontend's exact
-`/confirm-email` URL to the redirect allowlist, and set the confirmation email
-template to match `supabase/templates/confirmation.html`. Set the site URL to
-the production frontend. Local email can be checked using Supabase's local
-email testing interface. New accounts still need administrator activation
+In the Supabase project's Auth settings, configure email
+confirmation and SMTP, add each frontend's exact
+`/confirm-email` URL to the redirect allowlist, and set the confirmation and
+recovery email templates to match `supabase/templates/confirmation.html` and
+`supabase/templates/recovery.html`. Set the site URL to
+the Vercel frontend. New accounts still need administrator activation
 after verification. Deploy the verified-email activation migration and updated
 `team-members` Edge Function as well as the frontend; existing inactive users
 must verify their email before they can be activated.
@@ -115,9 +161,13 @@ alone does not guarantee protection from account enumeration. Verify the
 deployed Auth responses and consider additional server-side protections if this
 is a requirement.
 
-After applying migrations to an isolated local test database, the transactional
+After applying migrations to an isolated test database, the transactional
 signup test can be run with
 `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/tests/signup_pending_approval.sql`.
+
+### User Roles
+
+![Staff, manager, and admin roles and their permissions](docs/images/user-roles.png)
 
 ## Key Features
 
@@ -133,30 +183,38 @@ signup test can be run with
 - Store uploaded documents in the private `invoices` bucket.
 - Extract candidate vendor, account, invoice, amount, and date fields through an Edge Function.
 - Match extracted account information to a vendor account when there is one unambiguous match.
-- Review and correct bill details before submission.
+- Detect duplicate files and invoices; save incomplete or failed extractions for review.
+- Complete or correct saved bill details before approval.
 
 ### Review and approval
 
-- Organize bills in Pending, Needs Review, Approved, and Rejected states.
+- Track bills in Pending, Needs Review, Extraction Failed, Approved, Paid, and Rejected states.
 - Allow authorized users to approve or reject bills.
 - Require a reason when rejecting a bill.
-- Record decisions in an approval history.
+- Record decisions and edits in bill history.
+
+### Accounts and settings
+
+- Sign up, verify email, and reset passwords through Supabase Auth.
+- Manage organization details, team roles, account status, and payment methods in settings.
 
 ## API Structure
 
-The application uses Supabase Edge Functions rather than a Next.js API or a separate Express API. Functions are configured in `supabase/config.toml` and implemented under `supabase/functions/`.
+The application uses Supabase Edge Functions and direct Supabase queries/RPCs. Functions are configured in `supabase/config.toml` and implemented under `supabase/functions/`. A separate Express bridge is used by the payment automation prototype.
 
 | Function | Purpose |
 | --- | --- |
 | `create-bill` | Validate and create a bill |
 | `update-bill` | Validate and update an editable bill |
-| `extract-bill` | Read a stored bill document and return extracted fields |
-| `match-bill` | Match extracted account details to a vendor account |
+| `process-bill` | Extract, match, check duplicates, and save an uploaded bill |
+| `extract-bill`, `match-bill` | Standalone extraction and account-matching functions |
 | `read-approvals` | Load bills, approval history, and approval permission |
 | `decide-bill` | Record an approval or rejection |
-| `create-property`, `update-property`, `delete-property`, `read-properties` | Property operations |
-| `create-vendor`, `update-vendor`, `delete-vendor`, `read-vendors` | Vendor operations |
-| `read-property-details` | Load a property's details and associated bills |
+| `create-property`, `update-property`, `delete-property`, `read-properties`, `read-property-details` | Property operations and details |
+| `create-vendor`, `update-vendor`, `delete-vendor`, `read-vendors`, `read-vendor-details` | Vendor operations and details |
+| `create-vendor-account`, `update-vendor-account` | Vendor account operations |
+| `organization-settings`, `team-members` | Organization and team settings |
+| `execute-payment` | Simulated payment record; does not execute a real payment |
 
 Shared request validation and helpers live in `supabase/functions/_shared/`. Automated validation tests live in `supabase/functions/tests/`.
 
@@ -171,33 +229,36 @@ Shared request validation and helpers live in `supabase/functions/_shared/`. Aut
 ### Page components
 
 - `DashboardPage` — application overview.
-- `BillsPage` — bill list and bill editing.
-- `UploadBillPage` — upload, extraction, vendor matching, and bill form flow.
+- `BillsPage` and `BillDetailsPage` — bill list, details, editing, and history.
+- `UploadBillPage` — upload, processing, and completion of unfinished bills.
 - `ManualBillIntakePage` — manual bill entry.
 - `ApprovalsPage` — pending/review queue and approval history.
 - `PropertiesPage` and `PropertyDetailsPage` — property list and details.
-- `VendorsPage` and `VendorFormPage` — vendor management.
-- `LoginPage`, `SignUpPage`, `AccountSettingsPage` — authentication and account settings.
+- `VendorsPage` and `VendorDetailsPage` — vendor and account management.
+- `LandingPage` — public landing page.
+- `LoginPage`, `ConfirmEmailPage`, `ForgotPasswordPage`, and `AccountSettingsPage` — authentication and settings. Signup is part of `LoginPage`.
 
 ### Reusable components and hooks
 
 - `BillDetailsForm` — shared bill input/edit form.
 - `UploadDocument` — bill document upload control.
-- `PropertyForm` and `VendorForm` — property/vendor forms.
-- Hooks under `frontend/src/hooks/` — reusable property, vendor, and property-detail data access.
+- `FinishBillPanel` — complete bills that need review or whose extraction failed.
+- `PropertyForm`, `VendorForm`, and `VendorAccountForm` — property and vendor forms.
+- Hooks under `frontend/src/hooks/` — reusable bill, property, vendor, and user-profile data access.
 - `frontend/utils/supabase.js` — shared Supabase client.
 
 ## Data Flow
+
+![Bill flow: upload or enter a bill, review its details, approve it, and track payment](docs/images/bill-flow.png)
 
 ### Uploaded bill
 
 1. The user selects a PDF, JPG, or PNG in `UploadDocument`.
 2. The file is uploaded to the private Supabase Storage `invoices` bucket.
-3. `UploadBillPage` calls `extract-bill` with the stored file path.
-4. The extraction function downloads the file using the caller's access and calls OpenRouter.
-5. The page calls `match-bill` to match extracted account details to a vendor account.
-6. The bill form displays extracted candidate values and lets the user review or correct them.
-7. On submission, `create-bill` validates the request and saves the bill.
+3. `UploadBillPage` calls `process-bill` with the stored file path.
+4. The function downloads the file using the caller's access, checks for a duplicate file, and calls OpenRouter.
+5. It matches the extracted account number, checks for a duplicate invoice, and saves the bill as `pending` or `needs_review`. If extraction fails, it saves an `extraction_failed` bill.
+6. The page shows the result; users can complete unfinished bills immediately or return to them later.
 
 ### Approval decision
 
@@ -231,13 +292,15 @@ Deploy an Edge Function with:
 npx supabase@latest functions deploy FUNCTION_NAME
 ```
 
+Configure `OPENROUTER_API_KEY` as a secret in the target Supabase project for bill extraction. Review the Auth configuration described above and deploy all functions needed by the frontend, including `process-bill`. Do not put secret keys in frontend environment variables.
+
 ### Frontend
 
-The frontend is built with Vite. Its production hosting provider and deployment workflow should be configured by the project maintainers. Build output is generated in `frontend/dist/`.
+The frontend is deployed on Vercel and built with Vite into `frontend/dist/`. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for the target project in Vercel. `frontend/vercel.json` provides a single-page-app rewrite.
 
 ## Git Workflow
 
-1. Update local `main`:
+1. Update `main`:
    ```bash
    git switch main
    git pull --ff-only origin main
@@ -269,64 +332,6 @@ The shared Tailwind theme is defined in `frontend/src/index.css`.
 
 Prefer these theme utilities over one-off colors when styling shared UI.
 
-## Run Locally
-
-### Requirements
-
-- Node.js and npm
-- Docker Desktop for the local Supabase stack
-- Supabase CLI (commands below use `npx`; a global CLI installation is optional)
-- Deno to run Edge Function tests
-
-### 1. Start Supabase
-
-From the repository root:
-
-```bash
-npx supabase@latest start
-```
-
-The CLI prints the local API URL and publishable/anon key. Create `frontend/.env.local` with the values from your local stack:
-
-```dotenv
-VITE_SUPABASE_URL=http://127.0.0.1:54321
-VITE_SUPABASE_PUBLISHABLE_KEY=your-local-publishable-key
-```
-
-Use the actual values printed by the CLI if they differ. Do not commit credentials.
-
-### 2. Configure bill extraction
-
-Copy the Edge Function environment example:
-
-```bash
-cp supabase/functions/.env.example supabase/functions/.env
-```
-
-Set your own `OPENROUTER_API_KEY` in `supabase/functions/.env`. Keep this secret out of Git. To serve functions locally with this environment file:
-
-```bash
-npx supabase@latest functions serve --env-file supabase/functions/.env
-```
-
-### 3. Start the frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Open the URL Vite prints, typically <http://localhost:5173>.
-
-### 4. Log In Using Test Email
-
-Navigate to login
-email: test@example.com
-password: Password123$
-
-Enjoy!
-
 ## Useful Commands
 
 Run frontend commands from the repository root:
@@ -339,22 +344,9 @@ npm --prefix frontend run build
 Run Edge Function tests from the repository root:
 
 ```bash
-deno test supabase/functions/tests/
+deno test --node-modules-dir=auto supabase/functions/tests/
 ```
 
-Manage the local Supabase stack from the repository root:
+CI runs the frontend lint/build and Edge Function tests. The SQL signup test described above requires a compatible isolated database.
 
-```bash
-npx supabase@latest start
-npx supabase@latest stop
-```
-
-## Team
-
-- Adrian Crosby
-- Aisha Umar
-- Antonio Reyes
-- Arnau Davis
-- Audrey Clark
-- Jake Johnson
-- Sarah Al-Said
+The optional extraction evaluation under `supabase/evals/` calls OpenRouter and may incur costs; see `supabase/evals/run.js` for its commands and answer-key workflow.
