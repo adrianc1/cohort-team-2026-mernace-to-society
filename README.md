@@ -245,6 +245,8 @@ Shared request validation and helpers live in `supabase/functions/_shared/`. Aut
 
 ## Data Flow
 
+![Bill flow: upload or enter a bill, review its details, approve it, and track payment](docs/images/bill-flow.png)
+
 ### Uploaded bill
 
 1. The user selects a PDF, JPG, or PNG in `UploadDocument`.
